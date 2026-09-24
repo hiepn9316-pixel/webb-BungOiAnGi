@@ -1,0 +1,123 @@
+[
+  {
+    "id": 1,
+    "name": "Mì cay Hải Sản",
+    "price": 45000,
+    "category": "mon-nuoc",
+    "type": "man",
+    "description": "Mì cay Hàn Quốc với tôm, mực, chả cá và 7 cấp độ cay xé lưỡi",
+    "image": "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=500&auto=format&fit=crop",
+    "tags": ["cay", "no", "an-vui"]
+  },
+  {
+    "id": 2,
+    "name": "Cơm Tấm Sườn Bì Chả",
+    "price": 40000,
+    "category": "mon-com",
+    "type": "man",
+    "description": "Cơm tấm nóng hổi kèm sườn nướng mật ong thơm lừng, bì và chả chưng",
+    "image": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop",
+    "tags": ["no", "phobien", "tiet-kiem"]
+  },
+  {
+    "id": 3,
+    "name": "Bún Bò Huế Đặc Biệt",
+    "price": 50000,
+    "category": "mon-nuoc",
+    "type": "man",
+    "description": "Nước dùng đậm đà hương sả mắm ruốc, bò nạm, giò heo và huyết",
+    "image": "https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?w=500&auto=format&fit=crop",
+    "tags": ["cay", "no", "dam-da"]
+  },
+  {
+    "id": 4,
+    "name": "Bún Thịt Nướng Chả Giò",
+    "price": 38000,
+    "category": "mon-kho",
+    "type": "man",
+    "description": "Bún tươi ăn kèm thịt nướng xiên, chả giòn rụm và nước mắm chua ngọt",
+    "image": "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=500&auto=format&fit=crop",
+    "tags": ["tiet-kiem", "ngon-lanh", "phobien"]
+  },
+  {
+    "id": 5,
+    "name": "Cơm Gà Xối Mỡ",
+    "price": 45000,
+    "category": "mon-com",
+    "type": "man",
+    "description": "Đùi gà chiên giòn rụm da vàng ươm ăn kèm cơm đỏ sốt cà chua",
+    "image": "https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=500&auto=format&fit=crop",
+    "tags": ["no", "gion-rum"]
+  },
+  {
+    "id": 6,
+    "name": "Bánh Bột Lọc Huế",
+    "price": 25000,
+    "category": "an-vat",
+    "type": "man",
+    "description": "Bánh bột lọc nhân tôm thịt dai giòn sần sật châm nước mắm cay",
+    "image": "https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?w=500&auto=format&fit=crop",
+    "tags": ["an-vui", "tiet-kiem", "cay"]
+  },
+  {
+    "id": 7,
+    "name": "Tokbokki Phô Mai",
+    "price": 35000,
+    "category": "an-vat",
+    "type": "man",
+    "description": "Bánh gạo Hàn Quốc sốt cay phủ phô mai kéo sợi thơm béo",
+    "image": "https://images.unsplash.com/photo-1553163147-622ab57be1c7?w=500&auto=format&fit=crop",
+    "tags": ["cay", "beo-bap", "an-vui"]
+  },
+  {
+    "id": 8,
+    "name": "Trà Sữa Trân Châu Đường Đen",
+    "price": 30000,
+    "category": "do-uong",
+    "type": "chay",
+    "description": "Trà sữa đậm vị kèm trân châu đường đen dẻo thơm ngạt ngào",
+    "image": "https://images.unsplash.com/photo-1558857563-b371033873b8?w=500&auto=format&fit=crop",
+    "tags": ["giai-khat", "ngot-ngao"]
+  },
+  {
+    "id": 9,
+    "name": "Trà Đào Cam Sả",
+    "price": 28000,
+    "category": "do-uong",
+    "type": "chay",
+    "description": "Vị chua thanh của cam kết hợp hương sả thơm lừng và miếng đào giòn tan",
+    "image": "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=500&auto=format&fit=crop",
+    "tags": ["giai-khat", "thanh-mat"]
+  },
+  {
+    "id": 10,
+    "name": "Mì Xào Bò Rau Củ",
+    "price": 42000,
+    "category": "mon-kho",
+    "type": "man",
+    "description": "Mì trứng xào thịt bò mềm ngọt cùng rau cải cúc, cà rốt và hành tây",
+    "image": "https://images.unsplash.com/photo-1612929633738-8fe44f7ec841?w=500&auto=format&fit=crop",
+    "tags": ["no", "dinh-duong"]
+  },
+  {
+    "id": 11,
+    "name": "Phở Bò Tái Nạm",
+    "price": 55000,
+    "category": "mon-nuoc",
+    "type": "man",
+    "description": "Phở truyền thống Hà Nội với nước dùng ninh xương ngọt thanh đậm đà",
+    "image": "https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?w=500&auto=format&fit=crop",
+    "tags": ["no", "truyen-thong"]
+  },
+  {
+    "id": 12,
+    "name": "Cơm Chiên Dương Châu",
+    "price": 35000,
+    "category": "mon-com",
+    "type": "man",
+    "description": "Cơm chiên hạt vàng ươm tơi xốp phối cùng lạp xưởng, đậu hà lan và tôm",
+    "image": "https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=500&auto=format&fit=crop",
+    "tags": ["no", "tiet-kiem"]
+  }
+]
+

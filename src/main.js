@@ -1,60 +1,72 @@
-import './style.css'
-import heroImg from './assets/hero.png'
-import javascriptLogo from './assets/javascript.svg'
-import viteLogo from './assets/vite.svg'
-import { setupCounter } from './counter.js'
+import './style.css';
+import { filterByCategory, renderCategoryTabs } from './js/categoryFilter.js';
+import { renderDishList } from './js/dishRender.js';
 
-document.querySelector('#app').innerHTML = `
-<section id="center">
-  <div class="hero">
-    <img src="${heroImg}" class="base" width="170" height="179">
-    <img src="${javascriptLogo}" class="framework" alt="JavaScript logo"/>
-    <img src="${viteLogo}" class="vite" alt="Vite logo" />
-  </div>
-  <div>
-    <h1>Get started</h1>
-    <p>Edit <code>src/main.js</code> and save to test <code>HMR</code></p>
-  </div>
-  <button id="counter" type="button" class="counter"></button>
-</section>
+// Trạng thái ứng dụng (App State)
+let allDishes = [];
+let activeCategory = 'tat-ca';
 
-<div class="ticks"></div>
+// DOM Elements
+const categoryContainer = document.getElementById('category-filter-container');
+const dishesContainer = document.getElementById('dishes-container');
+const dishesCountEl = document.getElementById('dishes-count');
 
-<section id="next-steps">
-  <div id="docs">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#documentation-icon"></use></svg>
-    <h2>Documentation</h2>
-    <p>Your questions, answered</p>
-    <ul>
-      <li>
-        <a href="https://vite.dev/" target="_blank">
-          <img class="logo" src="${viteLogo}" alt="" />
-          Explore Vite
-        </a>
-      </li>
-      <li>
-        <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript" target="_blank">
-          <img class="button-icon" src="${javascriptLogo}" alt="">
-          Learn more
-        </a>
-      </li>
-    </ul>
-  </div>
-  <div id="social">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#social-icon"></use></svg>
-    <h2>Connect with us</h2>
-    <p>Join the Vite community</p>
-    <ul>
-      <li><a href="https://github.com/vitejs/vite" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#github-icon"></use></svg>GitHub</a></li>
-      <li><a href="https://chat.vite.dev/" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#discord-icon"></use></svg>Discord</a></li>
-      <li><a href="https://x.com/vite_js" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#x-icon"></use></svg>X.com</a></li>
-      <li><a href="https://bsky.app/profile/vite.dev" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#bluesky-icon"></use></svg>Bluesky</a></li>
-    </ul>
-  </div>
-</section>
+/**
+ * Tải danh sách món ăn từ file JSON dữ liệu
+ */
+async function loadDishes() {
+  try {
+    const response = await fetch('/data/dishes.json');
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    allDishes = await response.json();
+    renderApp();
+  } catch (error) {
+    console.error('Không thể tải dữ liệu món ăn:', error);
+    if (dishesContainer) {
+      dishesContainer.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">⚠️</div>
+          <h3>Lỗi tải dữ liệu</h3>
+          <p>Không thể kết nối với tập dữ liệu món ăn. Vui lòng kiểm tra lại!</p>
+        </div>
+      `;
+    }
+  }
+}
 
-<div class="ticks"></div>
-<section id="spacer"></section>
-`
+/**
+ * Xử lý khi người dùng thay đổi danh mục lọc (F03)
+ * @param {string} newCategory 
+ */
+function handleCategorySelect(newCategory) {
+  activeCategory = newCategory;
+  renderApp();
+}
 
-setupCounter(document.querySelector('#counter'))
+/**
+ * Cập nhật lại toàn bộ giao diện theo trạng thái hiện tại
+ */
+function renderApp() {
+  // 1. Lọc món ăn theo danh mục
+  const filteredDishes = filterByCategory(allDishes, activeCategory);
+
+  // 2. Render thanh tab danh mục
+  renderCategoryTabs(categoryContainer, activeCategory, handleCategorySelect);
+
+  // 3. Cập nhật số lượng món
+  if (dishesCountEl) {
+    if (activeCategory === 'tat-ca') {
+      dishesCountEl.textContent = `Tất cả (${allDishes.length} món)`;
+    } else {
+      dishesCountEl.textContent = `Hiển thị ${filteredDishes.length} / ${allDishes.length} món`;
+    }
+  }
+
+  // 4. Render danh sách món ăn hoặc thông báo rỗng (F01 & BR03)
+  renderDishList(dishesContainer, filteredDishes);
+}
+
+// Khởi chạy ứng dụng khi DOM sẵn sàng
+document.addEventListener('DOMContentLoaded', loadDishes);
