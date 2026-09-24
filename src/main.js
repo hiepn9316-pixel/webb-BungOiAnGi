@@ -1,13 +1,17 @@
 import './style.css';
 import { filterByCategory, renderCategoryTabs } from './js/categoryFilter.js';
+import { filterByPrice, renderPriceFilterUI } from './js/priceFilter.js';
 import { renderDishList } from './js/dishRender.js';
 
 // Trạng thái ứng dụng (App State)
 let allDishes = [];
 let activeCategory = 'tat-ca';
+let activePriceTier = 'tat-ca';
+let customMaxBudget = null;
 
 // DOM Elements
 const categoryContainer = document.getElementById('category-filter-container');
+const priceContainer = document.getElementById('price-filter-container');
 const dishesContainer = document.getElementById('dishes-container');
 const dishesCountEl = document.getElementById('dishes-count');
 
@@ -37,7 +41,7 @@ async function loadDishes() {
 }
 
 /**
- * Xử lý khi người dùng thay đổi danh mục lọc (F03)
+ * Xử lý khi chọn Danh mục (F03)
  * @param {string} newCategory 
  */
 function handleCategorySelect(newCategory) {
@@ -46,26 +50,53 @@ function handleCategorySelect(newCategory) {
 }
 
 /**
- * Cập nhật lại toàn bộ giao diện theo trạng thái hiện tại
+ * Xử lý khi chọn Khoảng giá (F03 & F07)
+ * @param {string} newPriceTier 
+ */
+function handlePriceTierSelect(newPriceTier) {
+  activePriceTier = newPriceTier;
+  customMaxBudget = null; // Reset ngân sách nhập tay khi chọn tab khoảng giá
+  renderApp();
+}
+
+/**
+ * Xử lý khi nhập Ngân sách tùy chỉnh (F07)
+ * @param {number|null} newBudget 
+ */
+function handleCustomBudgetChange(newBudget) {
+  customMaxBudget = newBudget;
+  renderApp();
+}
+
+/**
+ * Cập nhật lại toàn bộ giao diện theo kết hợp đa bộ lọc
  */
 function renderApp() {
-  // 1. Lọc món ăn theo danh mục
-  const filteredDishes = filterByCategory(allDishes, activeCategory);
+  // 1. Lọc theo Danh mục
+  let filtered = filterByCategory(allDishes, activeCategory);
 
-  // 2. Render thanh tab danh mục
+  // 2. Lọc theo Khoảng giá / Ngân sách
+  filtered = filterByPrice(filtered, activePriceTier, customMaxBudget);
+
+  // 3. Render thanh tab danh mục
   renderCategoryTabs(categoryContainer, activeCategory, handleCategorySelect);
 
-  // 3. Cập nhật số lượng món
+  // 4. Render thanh lọc khoảng giá & ngân sách
+  renderPriceFilterUI(
+    priceContainer, 
+    activePriceTier, 
+    customMaxBudget, 
+    handlePriceTierSelect, 
+    handleCustomBudgetChange
+  );
+
+  // 5. Cập nhật số lượng món hiển thị
   if (dishesCountEl) {
-    if (activeCategory === 'tat-ca') {
-      dishesCountEl.textContent = `Tất cả (${allDishes.length} món)`;
-    } else {
-      dishesCountEl.textContent = `Hiển thị ${filteredDishes.length} / ${allDishes.length} món`;
-    }
+    dishesCountEl.textContent = `Hiển thị ${filtered.length} / ${allDishes.length} món`;
   }
 
-  // 4. Render danh sách món ăn hoặc thông báo rỗng (F01 & BR03)
-  renderDishList(dishesContainer, filteredDishes);
+  // 6. Render danh sách món ăn hoặc thông báo rỗng (F01 & BR03)
+  renderDishList(dishesContainer, filtered);
 }
 
 // Khởi chạy ứng dụng khi DOM sẵn sàng
