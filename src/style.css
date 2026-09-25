@@ -40,17 +40,6 @@ body {
   overflow: hidden;
 }
 
-.header::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: radial-gradient(circle, rgba(255, 87, 34, 0.15) 0%, transparent 60%);
-  pointer-events: none;
-}
-
 .header-content {
   max-width: 800px;
   margin: 0 auto;
@@ -164,34 +153,18 @@ body {
   padding: 36px 24px 64px;
 }
 
-/* Section Title */
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.section-block {
   margin-bottom: 24px;
 }
 
-.section-title {
-  font-size: 1.5rem;
+.filter-label {
+  font-size: 0.95rem;
   font-weight: 700;
   color: var(--text-main);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.result-count {
-  font-size: 0.95rem;
-  color: var(--text-muted);
-  font-weight: 500;
+  margin-bottom: 12px;
 }
 
 /* Categories List */
-.categories-wrapper {
-  margin-bottom: 32px;
-}
-
 .categories-list {
   display: flex;
   gap: 12px;
@@ -237,25 +210,18 @@ body {
   box-shadow: 0 4px 12px rgba(255, 87, 34, 0.25);
 }
 
-/* Mood Filters Bar */
-.moods-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-bottom: 36px;
+/* Moods & Tags Filter Bars */
+.moods-bar, .tags-bar {
   background: #f1f5f9;
-  padding: 16px 20px;
+  padding: 18px 20px;
   border-radius: var(--radius);
 }
 
-.moods-title {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--text-main);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-right: 8px;
+.chip-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .mood-chip {
@@ -264,10 +230,11 @@ body {
   border: 1px solid var(--border);
   border-radius: 20px;
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-muted);
   cursor: pointer;
   transition: all 0.2s ease;
+  user-select: none;
 }
 
 .mood-chip:hover {
@@ -282,6 +249,29 @@ body {
 }
 
 /* Foods Grid */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 36px;
+  margin-bottom: 24px;
+}
+
+.section-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.result-count {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
 .foods-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -297,7 +287,6 @@ body {
   flex-direction: column;
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: var(--shadow-sm);
-  position: relative;
 }
 
 .food-card:hover {

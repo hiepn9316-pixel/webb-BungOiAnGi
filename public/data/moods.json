@@ -1,0 +1,62 @@
+[
+  {
+    "id": "mood-hungry",
+    "name": "Đang rất đói",
+    "description": "Nhu cầu nạp năng lượng khẩn cấp với các món ngon phong phú."
+  },
+  {
+    "id": "mood-full",
+    "name": "Muốn ăn no",
+    "description": "Nhu cầu thưởng thức các món ăn no lâu, chắc bụng cho bữa chính."
+  },
+  {
+    "id": "mood-light",
+    "name": "Muốn ăn nhẹ",
+    "description": "Nhu cầu ăn các món vừa phải, dễ tiêu hóa, không bị quá đầy bụng."
+  },
+  {
+    "id": "mood-spicy",
+    "name": "Muốn ăn cay",
+    "description": "Nhu cầu thưởng thức các món ăn vị cay nồng nức mũi."
+  },
+  {
+    "id": "mood-fast",
+    "name": "Muốn ăn nhanh",
+    "description": "Nhu cầu ăn các món chuẩn bị nhanh gọn, không phải chờ lâu."
+  },
+  {
+    "id": "mood-healthy",
+    "name": "Muốn ăn healthy",
+    "description": "Nhu cầu ăn món thanh tịnh, nhiều rau, tốt cho sức khỏe và vóc dáng."
+  },
+  {
+    "id": "mood-snack",
+    "name": "Muốn ăn vặt",
+    "description": "Nhu cầu nhâm nhi các món ăn nhẹ vui miệng vào giờ nghỉ."
+  },
+  {
+    "id": "mood-sweet",
+    "name": "Muốn ăn đồ ngọt",
+    "description": "Nhu cầu thưởng thức chè, bánh, đồ uống hoặc món tráng miệng béo ngọt."
+  },
+  {
+    "id": "mood-soup",
+    "name": "Muốn ăn món nước",
+    "description": "Nhu cầu xì xụp các món bún, phở, cháo hầm nóng hổi giải cảm."
+  },
+  {
+    "id": "mood-crispy",
+    "name": "Muốn ăn đồ giòn",
+    "description": "Nhu cầu ăn các món chiên giòn rụm hoặc nướng than hoa sần sật."
+  },
+  {
+    "id": "mood-group",
+    "name": "Tụ tập bạn bè",
+    "description": "Nhu cầu tìm món ăn đông vui dễ chia sẻ cùng hội bạn."
+  },
+  {
+    "id": "mood-relax",
+    "name": "Xả stress",
+    "description": "Nhu cầu thưởng thức món ăn ngon giúp xua tan mệt mỏi."
+  }
+]
