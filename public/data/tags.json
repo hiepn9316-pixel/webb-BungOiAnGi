@@ -1,0 +1,87 @@
+[
+  {
+    "id": "tag-soup",
+    "name": "Món nước",
+    "description": "Các món ăn có nước dùng nóng hổi, thanh ngọt như bún, phở, cháo, hủ tiếu."
+  },
+  {
+    "id": "tag-dry",
+    "name": "Món khô",
+    "description": "Các món ăn dạng khô như cơm, bún trộn, bánh tráng, mì xào."
+  },
+  {
+    "id": "tag-spicy",
+    "name": "Vị cay",
+    "description": "Món ăn có vị cay nồng của ớt, sa tế, tiêu nồng kích thích vị giác."
+  },
+  {
+    "id": "tag-sweet",
+    "name": "Vị ngọt / Đồ ngọt",
+    "description": "Các món ăn, đồ uống hoặc món tráng miệng có vị ngọt dịu hoặc béo ngọt."
+  },
+  {
+    "id": "tag-salty",
+    "name": "Vị mặn đậm đà",
+    "description": "Món ăn được ướp nêm nếm kho, nướng đậm đà vừa miệng."
+  },
+  {
+    "id": "tag-fatty",
+    "name": "Vị béo ngậy",
+    "description": "Món ăn có vị béo ngậy từ mỡ hành, nước cốt dừa, chả trứng, bơ."
+  },
+  {
+    "id": "tag-fresh",
+    "name": "Vị tươi mát",
+    "description": "Món ăn có nhiều rau xanh, dưa góp hoặc đồ uống giải nhiệt mát lành."
+  },
+  {
+    "id": "tag-meat",
+    "name": "Nhiều thịt",
+    "description": "Món ăn giàu đạm chứa nhiều thịt bò, thịt heo, thịt gà."
+  },
+  {
+    "id": "tag-seafood",
+    "name": "Hải sản",
+    "description": "Món ăn chế biến từ tôm, mực, cá, hàu tươi ngon."
+  },
+  {
+    "id": "tag-veggie",
+    "name": "Nhiều rau",
+    "description": "Món ăn kết hợp nhiều loại rau sống, dưa leo, dưa góp thanh mát."
+  },
+  {
+    "id": "tag-crispy",
+    "name": "Đồ giòn rụm",
+    "description": "Món chiên, rán hoặc nướng có lớp vỏ giòn rụm sần sật."
+  },
+  {
+    "id": "tag-breakfast",
+    "name": "Món ăn sáng",
+    "description": "Món ăn nạp năng lượng nhẹ nhàng thích hợp cho buổi sáng."
+  },
+  {
+    "id": "tag-lunch",
+    "name": "Món ăn trưa",
+    "description": "Món ăn chắc bụng giúp bạn no lâu cho cả ngày làm việc."
+  },
+  {
+    "id": "tag-dinner",
+    "name": "Món ăn tối",
+    "description": "Món ăn phong phú thích hợp thưởng thức vào buổi tối."
+  },
+  {
+    "id": "tag-snack",
+    "name": "Món ăn vặt",
+    "description": "Các món ăn nhâm nhi, ăn xế nhẹ nhàng vui miệng."
+  },
+  {
+    "id": "tag-healthy",
+    "name": "Healthy / Thanh lọc",
+    "description": "Món ăn ít dầu mỡ, cân bằng dinh dưỡng tốt cho sức khỏe."
+  },
+  {
+    "id": "tag-fast",
+    "name": "Ăn nhanh gọn",
+    "description": "Món ăn chuẩn bị nhanh chóng, tiện lợi tiết kiệm thời gian."
+  }
+]

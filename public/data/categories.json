@@ -1,0 +1,62 @@
+[
+  {
+    "id": "tat-ca",
+    "name": "Tất cả món ăn",
+    "description": "Khám phá toàn bộ thực đơn phong phú 30+ món ăn ngon hấp dẫn đặc sắc Việt Nam.",
+    "image": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600"
+  },
+  {
+    "id": "bun-pho",
+    "name": "Bún & Phở",
+    "description": "Các món bún, phở truyền thống nước dùng hầm ngọt thanh đậm đà hương vị Việt.",
+    "image": "https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?w=600"
+  },
+  {
+    "id": "com",
+    "name": "Món Cơm",
+    "description": "Cơm tấm, cơm gà, cơm niêu dẻo ngon đậm đà năng lượng cho bữa chính.",
+    "image": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600"
+  },
+  {
+    "id": "mi",
+    "name": "Mì & Hủ Tiếu",
+    "description": "Mì Quảng, mì xào giòn và hủ tiếu Nam Vang thơm ngon hấp dẫn.",
+    "image": "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=600"
+  },
+  {
+    "id": "chao",
+    "name": "Món Cháo",
+    "description": "Cháo sườn quẩy, cháo bò ấm nóng thanh lọc cơ thể nhẹ nhàng.",
+    "image": "https://images.unsplash.com/photo-1547592166-23ac45744acd?w=600"
+  },
+  {
+    "id": "an-vat",
+    "name": "Món Ăn Vặt",
+    "description": "Bánh tráng trộn, món ăn vặt thần thánh giải tỏa stress cùng bạn bè.",
+    "image": "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=600"
+  },
+  {
+    "id": "mon-chien",
+    "name": "Món Chiên",
+    "description": "Bánh xèo, nem rán, gà rán vỏ giòn rụm thơm nức béo ngậy.",
+    "image": "https://images.unsplash.com/photo-1563245372-f21724e3856d?w=600"
+  },
+  {
+    "id": "mon-nuong",
+    "name": "Món Nướng",
+    "description": "Thịt xiên, bò lá lốt, hải sản nướng mỡ hành đậm đà quyến rũ.",
+    "image": "https://images.unsplash.com/photo-1529193591184-b1d58069ecdd?w=600"
+  },
+  {
+    "id": "do-uong",
+    "name": "Đồ Uống",
+    "description": "Cà phê sữa đá, trà đào cam sả, trà sữa trân châu mát lạnh sảng khoái.",
+    "image": "https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=600"
+  },
+  {
+    "id": "trang-mieng",
+    "name": "Món Tráng Miệng",
+    "description": "Chè bưởi, bánh flan, sữa chua nếp cẩm ngọt ngào thanh mát.",
+    "image": "https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=600"
+  }
+]
