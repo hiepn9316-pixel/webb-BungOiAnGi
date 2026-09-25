@@ -31,8 +31,16 @@
       <main class="main-content">
         <!-- Hero Banner -->
         <section class="hero-section">
-          <h1 class="hero-title">Hôm nay bạn muốn ăn gì? 😋</h1>
-          <p class="hero-subtitle">Chọn danh mục yêu thích hoặc lọc theo khoảng giá ngân sách nhé!</p>
+          <div class="hero-content">
+            <span class="eyebrow">Khám phá món</span>
+            <h1 class="hero-title">Hôm nay bạn muốn ăn gì? 😋</h1>
+            <p class="hero-subtitle">Chọn danh mục yêu thích hoặc lọc theo khoảng giá ngân sách nhé!</p>
+            <div class="hero-badges" aria-label="Thông tin gợi ý món ăn">
+              <span>50+ món ngon</span>
+              <span>Giá phù hợp</span>
+              <span>Gợi ý nhanh</span>
+            </div>
+          </div>
         </section>
 
         <!-- Category Filter Section (F03) -->
@@ -54,7 +62,10 @@
         <!-- Dish List Section (F01) -->
         <section class="dishes-section">
           <div class="dishes-header">
-            <h2>Danh sách món ăn</h2>
+            <div class="dishes-title-wrap">
+              <span class="section-kicker">Khám phá món</span>
+              <h2>Danh sách món ăn</h2>
+            </div>
             <span id="dishes-count" class="dishes-count">Đang tải...</span>
           </div>
           <div id="dishes-container"></div>
