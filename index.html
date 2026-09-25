@@ -1,13 +1,83 @@
 <!doctype html>
-<html lang="en">
+<html lang="vi">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bụng Ơi Ăn Gì? - Tìm Kiếm & Lựa Chọn Món Ăn</title>
+    <title>BungOiAnGi - Trợ lý quyết định ăn gì</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <!-- Top Navigation Bar -->
+      <header class="navbar">
+        <div class="nav-container">
+          <a href="#" class="brand">
+            <span class="brand-logo">🍜</span>
+            <span class="brand-title">BungOiAnGi</span>
+          </a>
+          <nav class="nav-links">
+            <a href="#" class="nav-link active">Tất cả món</a>
+            <a href="#" class="nav-link">Ăn theo tâm trạng</a>
+            <a href="#" class="nav-link">Ngân sách</a>
+            <a href="#" class="nav-link">Bung! Random</a>
+          </nav>
+        </div>
+      </header>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <!-- Hero Banner -->
+        <section class="hero-section">
+          <div class="hero-content">
+            <span class="eyebrow">Khám phá món</span>
+            <h1 class="hero-title">Hôm nay bạn muốn ăn gì? 😋</h1>
+            <p class="hero-subtitle">Chọn danh mục yêu thích hoặc lọc theo khoảng giá ngân sách nhé!</p>
+            <div class="hero-badges" aria-label="Thông tin gợi ý món ăn">
+              <span>50+ món ngon</span>
+              <span>Giá phù hợp</span>
+              <span>Gợi ý nhanh</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Category Filter Section (F03) -->
+        <section class="filter-section">
+          <div class="section-header">
+            <h2>Lọc món theo danh mục</h2>
+          </div>
+          <div id="category-filter-container"></div>
+        </section>
+
+        <!-- Price Range & Budget Filter Section (F03 & F07) -->
+        <section class="filter-section">
+          <div class="section-header">
+            <h2>Lọc món theo khoảng giá & ngân sách</h2>
+          </div>
+          <div id="price-filter-container"></div>
+        </section>
+
+        <!-- Dish List Section (F01) -->
+        <section class="dishes-section">
+          <div class="dishes-header">
+            <div class="dishes-title-wrap">
+              <span class="section-kicker">Khám phá món</span>
+              <h2>Danh sách món ăn</h2>
+            </div>
+            <span id="dishes-count" class="dishes-count">Đang tải...</span>
+          </div>
+          <div id="dishes-container"></div>
+        </section>
+      </main>
+
+      <!-- Footer -->
+      <footer class="footer">
+        <p>© 2026 <strong>BungOiAnGi</strong> - Đồ án Trợ lý quyết định ăn gì (Client-only)</p>
+      </footer>
+    </div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
