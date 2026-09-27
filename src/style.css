@@ -329,6 +329,7 @@ body {
 
 .food-card-body {
   padding: 20px;
+}
 :root {
   --primary: #ff5722;
   --primary-hover: #f4511e;
@@ -923,6 +924,7 @@ body {
   border-radius: 6px;
   font-size: 0.85rem;
   color: #475569;
+}
 .dish-title {
   font-size: 1.1rem;
   font-weight: 700;
