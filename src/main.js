@@ -5,10 +5,12 @@ import { filterByDishType, filterByTag, renderDishTypeFilter, renderTagFilter, s
 import { filterByKeyword, renderSearchUI } from './js/searchFilter.js';
 import { renderDishList } from './js/dishRender.js';
 import { findDishById, pickRandomSimilar, renderDishDetail } from './js/dishDetail.js';
+import { filterOutExcluded, pickRandomDish, renderRandomPanel } from './js/randomDish.js';
 import { addHistory, getExcludedIds, isFavorite, toggleFavorite } from './js/storage.js';
 
 // Trạng thái ứng dụng (App State)
 let allDishes = [];
+let currentFiltered = [];
 let activeKeyword = '';
 let activeCategory = 'tat-ca';
 let activePriceTier = 'tat-ca';
@@ -19,6 +21,9 @@ let activeSort = 'recommended';
 let selectedDishId = null;
 let detailNotice = '';
 let detailReturnFocus = null;
+let rolledDishId = null;
+let lastRolledId = null;
+let rollMessage = '';
 
 // DOM Elements
 const searchContainer = document.getElementById('search-container');
@@ -28,6 +33,7 @@ const dishTypeContainer = document.getElementById('dish-type-filter-container');
 const dishTagContainer = document.getElementById('dish-tag-filter-container');
 const dishesContainer = document.getElementById('dishes-container');
 const detailContainer = document.getElementById('dish-detail-container');
+const randomContainer = document.getElementById('random-dish-container');
 const dishesCountEl = document.getElementById('dishes-count');
 const sortSelectEl = document.getElementById('sort-dishes');
 
@@ -119,6 +125,13 @@ function renderApp() {
   filtered = filterByTag(filtered, activeTag);
   filtered = sortDishes(filtered, activeSort);
 
+  currentFiltered = filtered;
+
+  // Món đang bốc phải luôn khớp bộ lọc hiện tại, nếu không sẽ xoá kết quả cũ
+  if (rolledDishId !== null && !filtered.some(dish => dish.id === rolledDishId)) {
+    resetRoll();
+  }
+
   renderSearchUI(searchContainer, activeKeyword, handleSearchInput);
   renderCategoryTabs(categoryContainer, activeCategory, handleCategorySelect);
 
@@ -146,6 +159,73 @@ function renderApp() {
   }
 
   renderDishList(dishesContainer, filtered, isFavorite);
+  renderRandomPanelState();
+}
+
+/* ============ F05 - Bốc món ngẫu nhiên & nút "Bốc lại" ============ */
+
+/**
+ * Xoá kết quả bốc hiện tại
+ */
+function resetRoll() {
+  rolledDishId = null;
+  lastRolledId = null;
+  rollMessage = '';
+}
+
+/**
+ * Lấy danh sách món ứng viên để bốc:
+ * áp dụng bộ lọc hiện tại (BR01) và loại bỏ món bị loại trừ (BR02)
+ * @returns {Array}
+ */
+function getRollPool() {
+  return filterOutExcluded(currentFiltered, getExcludedIds());
+}
+
+/**
+ * Bốc một món ngẫu nhiên, dùng chung cho nút "Bung! Ăn gì?" và nút "Bốc lại"
+ */
+function rollDish() {
+  const pool = getRollPool();
+
+  if (pool.length === 0) {
+    rolledDishId = null;
+    lastRolledId = null;
+    rollMessage = 'Không có món nào phù hợp với lựa chọn của bạn.';
+    renderRandomPanelState();
+    return;
+  }
+
+  const picked = pickRandomDish(pool, lastRolledId);
+
+  rolledDishId = picked.id;
+  lastRolledId = picked.id;
+  rollMessage = '';
+  addHistory(picked.id, picked.name);
+  renderRandomPanelState();
+}
+
+/**
+ * Render lại panel bốc dựa trên state hiện tại
+ */
+function renderRandomPanelState() {
+  const dish = rolledDishId !== null ? findDishById(allDishes, rolledDishId) : null;
+
+  renderRandomPanel(randomContainer, {
+    dish,
+    message: rollMessage,
+    poolSize: getRollPool().length,
+    isFavorite: dish ? isFavorite(dish.id) : false
+  }, {
+    onRoll: rollDish,
+    onReroll: rollDish,
+    onViewDetail: (id) => openDishDetail(id, null),
+    onToggleFavorite: (id) => {
+      toggleFavorite(id);
+      syncFavoriteButton(id, isFavorite(id));
+      renderRandomPanelState();
+    }
+  });
 }
 
 /* ============ F04 - Trang chi tiết món ăn ============ */
