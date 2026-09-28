@@ -4,6 +4,8 @@ import { filterByPrice, renderPriceFilterUI } from './js/priceFilter.js';
 import { filterByDishType, filterByTag, renderDishTypeFilter, renderTagFilter, sortDishes } from './js/filterUtils.js';
 import { filterByKeyword, renderSearchUI } from './js/searchFilter.js';
 import { renderDishList } from './js/dishRender.js';
+import { findDishById, pickRandomSimilar, renderDishDetail } from './js/dishDetail.js';
+import { addHistory, getExcludedIds, isFavorite, toggleFavorite } from './js/storage.js';
 
 // Trạng thái ứng dụng (App State)
 let allDishes = [];
@@ -14,6 +16,9 @@ let customMaxBudget = null;
 let activeDishType = 'tat-ca';
 let activeTag = 'tat-ca';
 let activeSort = 'recommended';
+let selectedDishId = null;
+let detailNotice = '';
+let detailReturnFocus = null;
 
 // DOM Elements
 const searchContainer = document.getElementById('search-container');
@@ -22,6 +27,7 @@ const priceContainer = document.getElementById('price-filter-container');
 const dishTypeContainer = document.getElementById('dish-type-filter-container');
 const dishTagContainer = document.getElementById('dish-tag-filter-container');
 const dishesContainer = document.getElementById('dishes-container');
+const detailContainer = document.getElementById('dish-detail-container');
 const dishesCountEl = document.getElementById('dishes-count');
 const sortSelectEl = document.getElementById('sort-dishes');
 
@@ -139,8 +145,138 @@ function renderApp() {
     sortSelectEl.onchange = (e) => handleSortChange(e.target.value);
   }
 
-  renderDishList(dishesContainer, filtered);
+  renderDishList(dishesContainer, filtered, isFavorite);
+}
+
+/* ============ F04 - Trang chi tiết món ăn ============ */
+
+/**
+ * Đồng bộ nút yêu thích của một thẻ món trong danh sách phía sau modal
+ * @param {number} id - ID món
+ * @param {boolean} fav - Trạng thái yêu thích mới
+ */
+function syncFavoriteButton(id, fav) {
+  const btn = dishesContainer.querySelector(`.btn-fav[data-id="${id}"]`);
+  if (!btn) return;
+
+  const label = fav ? 'Bỏ yêu thích' : 'Lưu yêu thích';
+  btn.classList.toggle('active', fav);
+  btn.textContent = fav ? '❤️' : '🤍';
+  btn.title = label;
+  btn.setAttribute('aria-label', label);
+  btn.setAttribute('aria-pressed', String(fav));
+}
+
+/**
+ * Render lại nội dung modal theo món đang chọn
+ */
+function renderSelectedDetail() {
+  const dish = findDishById(allDishes, selectedDishId);
+  if (!dish) {
+    closeDishDetail();
+    return;
+  }
+
+  renderDishDetail(detailContainer, dish, {
+    isFavorite: isFavorite(dish.id),
+    notice: detailNotice,
+    onClose: closeDishDetail,
+    onToggleFavorite: () => {
+      const added = toggleFavorite(dish.id);
+      detailNotice = '';
+      syncFavoriteButton(dish.id, added);
+      renderSelectedDetail();
+    },
+    onSimilar: () => {
+      const next = pickRandomSimilar(allDishes, dish, getExcludedIds());
+      if (!next) {
+        detailNotice = 'Chưa có món nào tương tự trong danh sách hiện tại.';
+        renderSelectedDetail();
+        return;
+      }
+      selectedDishId = next.id;
+      detailNotice = '';
+      addHistory(next.id, next.name);
+      renderSelectedDetail();
+    }
+  });
+}
+
+/**
+ * Mở chi tiết một món ăn
+ * @param {number} id - ID món
+ * @param {HTMLElement|null} triggerEl - Thẻ món đã bấm, dùng để trả lại focus khi đóng
+ */
+function openDishDetail(id, triggerEl) {
+  const dish = findDishById(allDishes, id);
+  if (!dish) return;
+
+  if (selectedDishId === null) {
+    detailReturnFocus = triggerEl || null;
+    document.body.classList.add('modal-open');
+  }
+
+  selectedDishId = dish.id;
+  detailNotice = '';
+  addHistory(dish.id, dish.name);
+  renderSelectedDetail();
+}
+
+/**
+ * Đóng modal chi tiết món
+ */
+function closeDishDetail() {
+  selectedDishId = null;
+  detailNotice = '';
+  if (detailContainer) detailContainer.innerHTML = '';
+  document.body.classList.remove('modal-open');
+
+  if (detailReturnFocus && document.contains(detailReturnFocus)) {
+    detailReturnFocus.focus();
+  }
+  detailReturnFocus = null;
+}
+
+/**
+ * Đăng ký sự kiện cho lưới món ăn và phím tắt.
+ * Chỉ đăng ký 1 lần duy nhất vì renderApp() thay nội dung #dishes-container
+ * chứ không thay chính phần tử này.
+ */
+function initDetailEvents() {
+  // Bấm nút yêu thích không được mở modal chi tiết
+  dishesContainer.addEventListener('click', (e) => {
+    const favBtn = e.target.closest('.btn-fav');
+    if (favBtn) {
+      e.stopPropagation();
+      const id = Number(favBtn.dataset.id);
+      syncFavoriteButton(id, toggleFavorite(id));
+      return;
+    }
+
+    const card = e.target.closest('.dish-card');
+    if (card) {
+      openDishDetail(Number(card.dataset.id), card);
+    }
+  });
+
+  // Mở chi tiết bằng bàn phím (Enter / Space) - role="button" cần hỗ trợ này
+  dishesContainer.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const card = e.target.closest('.dish-card');
+    if (!card) return;
+    e.preventDefault();
+    openDishDetail(Number(card.dataset.id), card);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && selectedDishId !== null) {
+      closeDishDetail();
+    }
+  });
 }
 
 // Khởi chạy ứng dụng khi DOM sẵn sàng
-document.addEventListener('DOMContentLoaded', loadDishes);
+document.addEventListener('DOMContentLoaded', () => {
+  initDetailEvents();
+  loadDishes();
+});
