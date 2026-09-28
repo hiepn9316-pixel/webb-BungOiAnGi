@@ -50,8 +50,41 @@ export function renderPriceFilterUI(
 ) {
   if (!containerEl) return;
 
-  containerEl.innerHTML = '';
+  const hasCustomBudget = customMaxBudget !== null && customMaxBudget > 0;
 
+  // Dựng DOM một lần duy nhất để không mất focus khi người dùng đang nhập
+  if (!containerEl.querySelector('.price-filter-wrapper')) {
+    containerEl.innerHTML = '';
+    buildPriceFilterUI(containerEl, onSelectPriceTier, onCustomBudgetChange);
+  }
+
+  const wrapper = containerEl.querySelector('.price-filter-wrapper');
+
+  // Đồng bộ trạng thái active của các khoảng giá preset
+  wrapper.querySelectorAll('.price-tab').forEach(btn => {
+    const isActive = !hasCustomBudget && btn.dataset.priceId === activePriceTierId;
+    btn.classList.toggle('active', isActive);
+  });
+
+  // Đồng bộ ô ngân sách, không ghi đè giá trị khi người dùng đang gõ
+  const inputEl = containerEl.querySelector('#budget-input');
+  if (inputEl && document.activeElement !== inputEl) {
+    inputEl.value = hasCustomBudget ? customMaxBudget : '';
+  }
+
+  const clearBtn = containerEl.querySelector('.btn-clear-budget');
+  if (clearBtn) {
+    clearBtn.hidden = !hasCustomBudget;
+  }
+}
+
+/**
+ * Khởi tạo DOM cho bộ lọc khoảng giá và ô nhập ngân sách (chỉ chạy 1 lần)
+ * @param {HTMLElement} containerEl 
+ * @param {Function} onSelectPriceTier 
+ * @param {Function} onCustomBudgetChange 
+ */
+function buildPriceFilterUI(containerEl, onSelectPriceTier, onCustomBudgetChange) {
   const wrapper = document.createElement('div');
   wrapper.className = 'price-filter-wrapper';
 
@@ -62,8 +95,7 @@ export function renderPriceFilterUI(
   PRICE_TIERS.forEach(tier => {
     const btn = document.createElement('button');
     btn.type = 'button';
-    const isActive = (customMaxBudget === null || customMaxBudget <= 0) && tier.id === activePriceTierId;
-    btn.className = `price-tab ${isActive ? 'active' : ''}`;
+    btn.className = 'price-tab';
     btn.dataset.priceId = tier.id;
 
     btn.innerHTML = `
@@ -82,8 +114,6 @@ export function renderPriceFilterUI(
   const customBudgetBox = document.createElement('div');
   customBudgetBox.className = 'custom-budget-box';
 
-  const budgetValue = customMaxBudget !== null && customMaxBudget > 0 ? customMaxBudget : '';
-
   customBudgetBox.innerHTML = `
     <label for="budget-input" class="budget-label">🎯 Nhập ngân sách của bạn:</label>
     <div class="budget-input-group">
@@ -94,10 +124,11 @@ export function renderPriceFilterUI(
         placeholder="VD: 50000" 
         min="0"
         step="5000"
-        value="${budgetValue}"
+        inputmode="numeric"
+        aria-label="Nhập ngân sách tối đa"
       />
       <span class="budget-suffix">đ</span>
-      ${budgetValue ? '<button type="button" class="btn-clear-budget" title="Xóa ngân sách">✕</button>' : ''}
+      <button type="button" class="btn-clear-budget" title="Xóa ngân sách" aria-label="Xóa ngân sách" hidden>✕</button>
     </div>
   `;
 
@@ -110,11 +141,11 @@ export function renderPriceFilterUI(
 
   // Sự kiện xóa ô ngân sách
   const clearBtn = customBudgetBox.querySelector('.btn-clear-budget');
-  if (clearBtn) {
-    clearBtn.addEventListener('click', () => {
-      onCustomBudgetChange(null);
-    });
-  }
+  clearBtn.addEventListener('click', () => {
+    inputEl.value = '';
+    onCustomBudgetChange(null);
+    inputEl.focus();
+  });
 
   wrapper.appendChild(tabsContainer);
   wrapper.appendChild(customBudgetBox);

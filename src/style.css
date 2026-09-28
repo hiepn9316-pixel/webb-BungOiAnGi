@@ -663,6 +663,10 @@ body {
   line-height: 1;
 }
 
+.btn-clear-budget[hidden] {
+  display: none;
+}
+
 .btn-clear-budget:hover {
   color: #e53e3e;
 }
