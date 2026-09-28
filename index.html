@@ -60,6 +60,22 @@
           <div id="price-filter-container"></div>
         </section>
 
+        <!-- Dish Type Filter Section -->
+        <section class="filter-section">
+          <div class="section-header">
+            <h2>Lọc món theo chay / mặn</h2>
+          </div>
+          <div id="dish-type-filter-container"></div>
+        </section>
+
+        <!-- Tag Filter Section -->
+        <section class="filter-section">
+          <div class="section-header">
+            <h2>Lọc món theo tag</h2>
+          </div>
+          <div id="dish-tag-filter-container"></div>
+        </section>
+
         <!-- Dish List Section (F01) -->
         <section class="dishes-section">
           <div class="dishes-header">
@@ -67,7 +83,18 @@
               <span class="section-kicker">Khám phá món</span>
               <h2>Danh sách món ăn</h2>
             </div>
-            <span id="dishes-count" class="dishes-count">Đang tải...</span>
+            <div class="dishes-toolbar">
+              <span id="dishes-count" class="dishes-count">Đang tải...</span>
+              <label class="sort-wrap" for="sort-dishes">
+                <span>Sắp xếp</span>
+                <select id="sort-dishes" aria-label="Sắp xếp món ăn">
+                  <option value="recommended">Gợi ý</option>
+                  <option value="price-asc">Giá thấp đến cao</option>
+                  <option value="price-desc">Giá cao đến thấp</option>
+                  <option value="name-asc">Tên A-Z</option>
+                </select>
+              </label>
+            </div>
           </div>
           <div id="dishes-container"></div>
         </section>
