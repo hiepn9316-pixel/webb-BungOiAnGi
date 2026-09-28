@@ -6,13 +6,19 @@ export const STORAGE_KEYS = {
   HISTORY: 'bungoi_history',
   EXCLUDED: 'bungoi_excluded',
   STATS: 'bungoi_stats',
-  ACHIEVEMENTS: 'bungoi_achievements'
+  ACHIEVEMENTS: 'bungoi_achievements',
+  DUEL: 'bungoi_duel'
 };
 
 /**
  * Số món tối đa được giữ trong lịch sử (BR05)
  */
 export const MAX_HISTORY = 10;
+
+/**
+ * Số kỳ đấu 1vs1 tối đa được giữ lại (F09)
+ */
+export const MAX_DUEL_RECORDS = 10;
 
 /**
  * Đọc một mảng số ID từ localStorage, luôn trả về mảng hợp lệ
@@ -129,6 +135,68 @@ export function addHistory(id, name = '') {
     localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(next));
   } catch (error) {
     console.warn(`Không ghi được "${STORAGE_KEYS.HISTORY}" vào localStorage:`, error);
+  }
+
+  return next;
+}
+
+/* ============ F09 - Kết quả đấu món 1 vs 1 ============ */
+
+/**
+ * Đọc toàn bộ dữ liệu đấu 1vs1 đã lưu: danh sách kỳ đấu + bảng tổng số lượt thắng
+ * @returns {{ duels: Array<Object>, wins: Object<number, {name: string, count: number}> }}
+ */
+export function getDuelRecords() {
+  const empty = { duels: [], wins: {} };
+
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.DUEL);
+    if (!raw) return empty;
+
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return empty;
+
+    return {
+      duels: Array.isArray(parsed.duels) ? parsed.duels : [],
+      wins: parsed.wins && typeof parsed.wins === 'object' && !Array.isArray(parsed.wins) ? parsed.wins : {}
+    };
+  } catch (error) {
+    console.warn(`Không đọc được "${STORAGE_KEYS.DUEL}" từ localStorage:`, error);
+    return empty;
+  }
+}
+
+/**
+ * Lưu kết quả một kỳ đấu 1vs1 và cộng dồn số lượt thắng của nhà vô địch
+ * @param {Object} result - Kết quả từ getDuelResult() trong duel.js
+ * @returns {{ duels: Array<Object>, wins: Object }} Dữ liệu sau khi cập nhật
+ */
+export function saveDuelResult(result) {
+  if (!result || !result.championId || !result.championName) {
+    return getDuelRecords();
+  }
+
+  const { duels, wins } = getDuelRecords();
+  const dishId = String(result.championId);
+
+  const record = {
+    championId: result.championId,
+    championName: result.championName,
+    rounds: result.rounds,
+    size: result.size,
+    won: result.won,
+    at: result.at
+  };
+
+  const previous = wins[dishId] || { name: result.championName, count: 0 };
+  wins[dishId] = { name: result.championName, count: (previous.count || 0) + 1 };
+
+  const next = { duels: [record, ...duels].slice(0, MAX_DUEL_RECORDS), wins };
+
+  try {
+    localStorage.setItem(STORAGE_KEYS.DUEL, JSON.stringify(next));
+  } catch (error) {
+    console.warn(`Không ghi được "${STORAGE_KEYS.DUEL}" vào localStorage:`, error);
   }
 
   return next;
