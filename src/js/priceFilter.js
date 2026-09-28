@@ -1,12 +1,13 @@
 /**
  * Các khoảng giá mặc định theo đặc tả SRS F07
+ * Khoảng dùng dạng [min, max) - mở bên phải để các khoảng rời nhau, không chồng lấn
  */
 export const PRICE_TIERS = [
   { id: 'tat-ca', name: 'Tất cả giá', icon: '💰', min: 0, max: Infinity },
   { id: 'sinh-ton', name: 'Sinh tồn (<20k)', icon: '💸', min: 0, max: 20000 },
   { id: 'sinh-vien', name: 'Sinh viên (20-40k)', icon: '🎓', min: 20000, max: 40000 },
   { id: 'an-ngon', name: 'Ăn ngon (40-70k)', icon: '😋', min: 40000, max: 70000 },
-  { id: 'choi-lon', name: 'Chơi lớn (70-150k)', icon: '👑', min: 70000, max: 150000 }
+  { id: 'choi-lon', name: 'Chơi lớn (70k+)', icon: '👑', min: 70000, max: Infinity }
 ];
 
 /**
@@ -19,7 +20,7 @@ export const PRICE_TIERS = [
 export function filterByPrice(dishes, priceTierId, customMaxBudget = null) {
   if (!dishes || !Array.isArray(dishes)) return [];
 
-  // Ưu tiên 1: Lọc theo ngân sách tùy chỉnh nếu người dùng có nhập
+  // Ưu tiên 1: Lọc theo ngân sách tùy chỉnh nếu người dùng có nhập (bao gồm cả ngân sách đúng bằng giá món)
   if (customMaxBudget !== null && customMaxBudget > 0) {
     return dishes.filter(dish => dish.price <= customMaxBudget);
   }
@@ -30,7 +31,7 @@ export function filterByPrice(dishes, priceTierId, customMaxBudget = null) {
     return dishes;
   }
 
-  return dishes.filter(dish => dish.price >= tier.min && dish.price <= tier.max);
+  return dishes.filter(dish => dish.price >= tier.min && dish.price < tier.max);
 }
 
 /**
