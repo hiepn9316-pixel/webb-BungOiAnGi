@@ -6,7 +6,16 @@ import { filterByKeyword, renderSearchUI } from './js/searchFilter.js';
 import { renderDishList } from './js/dishRender.js';
 import { findDishById, pickRandomSimilar, renderDishDetail } from './js/dishDetail.js';
 import { filterOutExcluded, pickRandomDish, renderRandomPanel } from './js/randomDish.js';
-import { addHistory, getExcludedIds, isFavorite, toggleFavorite } from './js/storage.js';
+import { addHistory, getDuelRecords, getExcludedIds, isFavorite, saveDuelResult, toggleFavorite } from './js/storage.js';
+import {
+  DUEL_PHASE,
+  DEFAULT_DUEL_ROUNDS,
+  createDuelState,
+  getDuelResult,
+  nextDuelRound,
+  pickDuelSide,
+  renderDuelPanel
+} from './js/duel.js';
 
 // Trạng thái ứng dụng (App State)
 let allDishes = [];
@@ -25,6 +34,10 @@ let rolledDishId = null;
 let lastRolledId = null;
 let rollMessage = '';
 
+// F09 - Đấu món 1 vs 1
+let duelState = null;
+let duelRounds = DEFAULT_DUEL_ROUNDS;
+
 // DOM Elements
 const searchContainer = document.getElementById('search-container');
 const categoryContainer = document.getElementById('category-filter-container');
@@ -34,6 +47,7 @@ const dishTagContainer = document.getElementById('dish-tag-filter-container');
 const dishesContainer = document.getElementById('dishes-container');
 const detailContainer = document.getElementById('dish-detail-container');
 const randomContainer = document.getElementById('random-dish-container');
+const duelContainer = document.getElementById('duel-container');
 const dishesCountEl = document.getElementById('dishes-count');
 const sortSelectEl = document.getElementById('sort-dishes');
 
@@ -132,6 +146,14 @@ function renderApp() {
     resetRoll();
   }
 
+  // Kỳ đấu đang chạy chỉ hợp lệ khi mọi món tham dự vẫn khớp bộ lọc (BR01 + BR02)
+  if (duelState && duelState.phase !== DUEL_PHASE.FINISHED) {
+    const poolIds = new Set(getDuelPool().map(dish => dish.id));
+    if (!duelState.participants.every(dish => poolIds.has(dish.id))) {
+      duelState = null;
+    }
+  }
+
   renderSearchUI(searchContainer, activeKeyword, handleSearchInput);
   renderCategoryTabs(categoryContainer, activeCategory, handleCategorySelect);
 
@@ -160,6 +182,7 @@ function renderApp() {
 
   renderDishList(dishesContainer, filtered, isFavorite);
   renderRandomPanelState();
+  renderDuelState();
 }
 
 /* ============ F05 - Bốc món ngẫu nhiên & nút "Bốc lại" ============ */
@@ -225,6 +248,87 @@ function renderRandomPanelState() {
       syncFavoriteButton(id, isFavorite(id));
       renderRandomPanelState();
     }
+  });
+}
+
+/* ============ F09 - Đấu món 1 vs 1 ============ */
+
+/**
+ * Lấy danh sách món ứng viên cho kỳ đấu:
+ * áp dụng bộ lọc hiện tại (BR01) và loại bỏ món bị loại trừ (BR02)
+ * @returns {Array}
+ */
+function getDuelPool() {
+  return filterOutExcluded(currentFiltered, getExcludedIds());
+}
+
+/**
+ * Bắt đầu một kỳ đấu mới, xáo trộn lại toàn bộ bảng đấu
+ */
+function startDuel() {
+  duelState = createDuelState(getDuelPool(), duelRounds);
+  renderDuelState();
+}
+
+/**
+ * Xử lý người dùng chọn món thắng ở lượt hiện tại (F09)
+ * @param {string} side - 'left' | 'right'
+ */
+function handleDuelPick(side) {
+  if (!duelState || duelState.phase !== DUEL_PHASE.PICKING) return;
+
+  pickDuelSide(duelState, side);
+
+  // Xong lượt cuối thì lưu kết quả chung cuộc xuống LocalStorage
+  if (duelState.phase === DUEL_PHASE.FINISHED) {
+    const result = getDuelResult(duelState);
+    if (result) {
+      saveDuelResult(result);
+      addHistory(result.championId, result.championName);
+    }
+  }
+
+  renderDuelState();
+}
+
+/**
+ * Chuyển sang lượt đấu tiếp theo sau khi đã chọn xong lượt hiện tại
+ */
+function handleDuelNext() {
+  if (!duelState) return;
+  nextDuelRound(duelState);
+  renderDuelState();
+}
+
+/**
+ * Đổi số lượt đấu và khởi động lại kỳ đấu cho phù hợp
+ * @param {number} rounds
+ */
+function handleDuelRoundsChange(rounds) {
+  if (!Number.isFinite(rounds) || rounds < 1) return;
+  duelRounds = rounds;
+  startDuel();
+}
+
+/**
+ * Render lại panel đấu dựa trên state hiện tại
+ */
+function renderDuelState() {
+  // BR03: bể món quá nhỏ thì báo ngay, không cần bấm "Bắt đầu trận" mới biết
+  const message = duelState || getDuelPool().length >= 2
+    ? ''
+    : 'Không có món nào phù hợp với lựa chọn của bạn.';
+
+  renderDuelPanel(duelContainer, {
+    duel: duelState,
+    rounds: duelRounds,
+    records: getDuelRecords(),
+    message
+  }, {
+    onStart: startDuel,
+    onRoundsChange: handleDuelRoundsChange,
+    onPick: handleDuelPick,
+    onNext: handleDuelNext
   });
 }
 
