@@ -330,6 +330,7 @@ body {
 .food-card-body {
   padding: 20px;
 }
+
 :root {
   --primary: #ff5722;
   --primary-hover: #f4511e;
@@ -441,29 +442,8 @@ body {
   border: 1px solid #ffe0d2;
 }
 
-.hero-content {
-  max-width: 760px;
-  margin: 0 auto;
-}
-
-.eyebrow,
-.section-kicker {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.35rem 0.8rem;
-  border-radius: 999px;
-  background: rgba(255, 87, 34, 0.08);
-  color: var(--primary);
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  margin-bottom: 0.75rem;
-}
-
 .hero-title {
-  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  font-size: 2.2rem;
   font-weight: 800;
   color: #1a202c;
   margin-bottom: 0.5rem;
@@ -474,37 +454,12 @@ body {
   color: var(--text-muted);
 }
 
-.hero-badges {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 0.7rem;
-  margin-top: 1.2rem;
-}
-
-.hero-badges span {
-  background: #fff;
-  color: var(--text-main);
-  border: 1px solid rgba(255, 87, 34, 0.12);
-  border-radius: 999px;
-  padding: 0.5rem 0.9rem;
-  font-size: 0.8rem;
-  font-weight: 700;
-  box-shadow: var(--shadow-sm);
-}
-
 /* Section Header */
 .section-header, .dishes-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 1rem;
-}
-
-.dishes-title-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
 }
 
 .section-header h2, .dishes-header h2 {
@@ -925,6 +880,7 @@ body {
   font-size: 0.85rem;
   color: #475569;
 }
+
 .dish-title {
   font-size: 1.1rem;
   font-weight: 700;
@@ -1024,30 +980,13 @@ body {
 }
 
 /* Responsive */
-@media (max-width: 1024px) {
-  .main-content {
-    padding: 1.5rem 1rem;
-  }
-
-  .dishes-grid {
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  }
-}
-
 @media (max-width: 768px) {
-  .hero-section {
-    padding: 1.5rem 0.8rem;
+  .hero-title {
+    font-size: 1.6rem;
   }
 
   .nav-links {
     display: none;
-  }
-
-  .dishes-header,
-  .section-header {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 0.75rem;
   }
 
   .dishes-grid {
@@ -1061,40 +1000,5 @@ body {
 
   .budget-input-group {
     width: 100%;
-  }
-}
-
-@media (max-width: 480px) {
-  .main-content {
-    padding: 1rem 0.75rem;
-  }
-
-  .brand-title {
-    font-size: 1.1rem;
-  }
-
-  .hero-subtitle {
-    font-size: 0.95rem;
-  }
-
-  .hero-badges {
-    gap: 0.5rem;
-  }
-
-  .hero-badges span {
-    font-size: 0.72rem;
-    padding: 0.45rem 0.7rem;
-  }
-
-  .dishes-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .dish-image-wrapper {
-    height: 210px;
-  }
-
-  .dish-content {
-    padding: 1rem;
   }
 }
