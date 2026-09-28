@@ -2,10 +2,12 @@ import './style.css';
 import { filterByCategory, renderCategoryTabs } from './js/categoryFilter.js';
 import { filterByPrice, renderPriceFilterUI } from './js/priceFilter.js';
 import { filterByDishType, filterByTag, renderDishTypeFilter, renderTagFilter, sortDishes } from './js/filterUtils.js';
+import { filterByKeyword, renderSearchUI } from './js/searchFilter.js';
 import { renderDishList } from './js/dishRender.js';
 
 // Trạng thái ứng dụng (App State)
 let allDishes = [];
+let activeKeyword = '';
 let activeCategory = 'tat-ca';
 let activePriceTier = 'tat-ca';
 let customMaxBudget = null;
@@ -14,6 +16,7 @@ let activeTag = 'tat-ca';
 let activeSort = 'recommended';
 
 // DOM Elements
+const searchContainer = document.getElementById('search-container');
 const categoryContainer = document.getElementById('category-filter-container');
 const priceContainer = document.getElementById('price-filter-container');
 const dishTypeContainer = document.getElementById('dish-type-filter-container');
@@ -45,6 +48,15 @@ async function loadDishes() {
       `;
     }
   }
+}
+
+/**
+ * Xử lý khi người dùng nhập từ khóa tìm kiếm (F02)
+ * @param {string} keyword 
+ */
+function handleSearchInput(keyword) {
+  activeKeyword = keyword;
+  renderApp();
 }
 
 /**
@@ -94,12 +106,14 @@ function handleSortChange(newSort) {
  * Cập nhật lại toàn bộ giao diện theo kết hợp đa bộ lọc
  */
 function renderApp() {
-  let filtered = filterByCategory(allDishes, activeCategory);
+  let filtered = filterByKeyword(allDishes, activeKeyword);
+  filtered = filterByCategory(filtered, activeCategory);
   filtered = filterByPrice(filtered, activePriceTier, customMaxBudget);
   filtered = filterByDishType(filtered, activeDishType);
   filtered = filterByTag(filtered, activeTag);
   filtered = sortDishes(filtered, activeSort);
 
+  renderSearchUI(searchContainer, activeKeyword, handleSearchInput);
   renderCategoryTabs(categoryContainer, activeCategory, handleCategorySelect);
 
   renderPriceFilterUI(
@@ -114,7 +128,10 @@ function renderApp() {
   renderTagFilter(dishTagContainer, activeTag, handleTagChange);
 
   if (dishesCountEl) {
-    dishesCountEl.textContent = `Hiển thị ${filtered.length} / ${allDishes.length} món`;
+    const total = allDishes.length;
+    dishesCountEl.textContent = activeKeyword.trim()
+      ? `Tìm "${activeKeyword.trim()}" — ${filtered.length}/${total} món`
+      : `Hiển thị ${filtered.length} / ${total} món`;
   }
 
   if (sortSelectEl) {
