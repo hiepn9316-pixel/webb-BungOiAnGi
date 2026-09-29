@@ -74,6 +74,7 @@ const detailContainer = document.getElementById('dish-detail-container');
 const randomContainer = document.getElementById('random-dish-container');
 const wheelContainer = document.getElementById('wheel-container');
 const duelContainer = document.getElementById('duel-container');
+const historyContainer = document.getElementById('history-container');
 const dishesCountEl = document.getElementById('dishes-count');
 const activeFilterSummary = document.getElementById('active-filter-summary');
 
@@ -206,6 +207,48 @@ function resetAllFilters() {
   activeMood = 'tat-ca';
   activeSort = 'recommended';
   renderApp();
+}
+
+function renderHistory() {
+  if (!historyContainer) return;
+
+  const history = getHistory();
+
+  if (history.length === 0) {
+    historyContainer.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🕘</div>
+        <h3>Chưa có lịch sử</h3>
+        <p>Những món bạn đã xem hoặc bốc sẽ xuất hiện ở đây.</p>
+      </div>
+    `;
+    return;
+  }
+
+  historyContainer.innerHTML = `
+    <div class="history-list">
+      ${history.map((item, index) => `
+        <button
+          type="button"
+          class="history-item"
+          data-history-id="${item.id}"
+        >
+          <span class="history-number">${index + 1}</span>
+          <span class="history-info">
+            <strong>${item.name || `Món #${item.id}`}</strong>
+            <small>${new Date(item.at).toLocaleString('vi-VN')}</small>
+          </span>
+        </button>
+      `).join('')}
+    </div>
+  `;
+
+  historyContainer.querySelectorAll('.history-item').forEach(button => {
+    button.addEventListener('click', () => {
+      const id = Number(button.dataset.historyId);
+      openDishDetail(id, button);
+    });
+  });
 }
 
 function renderActiveFilterSummary() {
@@ -456,6 +499,7 @@ function handleDuelPick(side) {
     if (result) {
       saveDuelResult(result);
       addHistory(result.championId, result.championName);
+      renderHistory();
     }
   }
 
@@ -650,6 +694,7 @@ function renderSelectedDetail() {
       selectedDishId = next.id;
       detailNotice = '';
       addHistory(next.id, next.name);
+      renderHistory();
       renderSelectedDetail();
     }
   });
@@ -667,6 +712,7 @@ function openDishDetail(id, triggerEl) {
   selectedDishId = dish.id;
   detailNotice = '';
   addHistory(dish.id, dish.name);
+  renderHistory();
   renderSelectedDetail();
 }
 
