@@ -76,7 +76,7 @@ export function pickRandomSimilar(dishes, dish, excludedIds = [], poolSize = 3) 
  * @param {string} notice - Thông báo phụ cần hiển thị (VD: không còn món tương tự)
  * @returns {string} HTML string
  */
-function buildDetailContentHTML(dish, isFavorite, notice) {
+function buildDetailContentHTML(dish, isFavorite, isExcluded, notice) {
   const type = DISH_TYPES.find(t => t.id === dish.type);
   const typeBadge = type
     ? `<span class="detail-badge ${dish.type === 'chay' ? 'detail-badge-chay' : 'detail-badge-man'}">${type.icon} ${type.name}</span>`
@@ -101,12 +101,17 @@ function buildDetailContentHTML(dish, isFavorite, notice) {
     <div class="detail-tags">${tagsHTML}</div>
     ${noticeHTML}
     <div class="detail-actions">
-      <button type="button" class="btn-detail-fav ${isFavorite ? 'active' : ''}" data-action="fav" aria-pressed="${isFavorite}">
-        ${isFavorite ? '❤️ Đã yêu thích' : '🤍 Yêu thích'}
-      </button>
-      <button type="button" class="btn-detail-similar" data-action="similar">
-        🎲 Bốc món tương tự
-      </button>
+    <button type="button" class="btn-detail-fav ${isFavorite ? 'active' : ''}" data-action="fav" aria-pressed="${isFavorite}">
+      ${isFavorite ? '❤️ Đã yêu thích' : '🤍 Yêu thích'}
+    </button>
+
+    <button type="button" class="btn-detail-exclude ${isExcluded ? 'active' : ''}" data-action="exclude" aria-pressed="${isExcluded}">
+    ${isExcluded ? '↩️ Bỏ không thích' : '🚫 Không thích'}
+    </button>
+
+    <button type="button" class="btn-detail-similar" data-action="similar">
+      🎲 Bốc món tương tự
+    </button>
     </div>
   `;
 }
@@ -125,7 +130,15 @@ export function renderDishDetail(containerEl, dish, handlers = {}) {
     return;
   }
 
-  const { isFavorite = false, notice = '', onClose, onToggleFavorite, onSimilar } = handlers;
+  const {
+    isFavorite = false,
+    isExcluded = false,
+    notice = '',
+    onClose,
+    onToggleFavorite,
+    onExclude,
+    onSimilar
+  } = handlers;
 
   containerEl.innerHTML = `
     <div class="modal-overlay active" id="dish-detail-overlay">
@@ -138,7 +151,7 @@ export function renderDishDetail(containerEl, dish, handlers = {}) {
           onerror="this.onerror=null;this.src='https://via.placeholder.com/800x500?text=BungOiAnGi';"
         />
         <div class="modal-content">
-          ${buildDetailContentHTML(dish, isFavorite, notice)}
+          ${buildDetailContentHTML(dish, isFavorite, isExcluded, notice)}
         </div>
       </div>
     </div>
@@ -154,6 +167,11 @@ export function renderDishDetail(containerEl, dish, handlers = {}) {
   const favBtn = containerEl.querySelector('[data-action="fav"]');
   if (favBtn) {
     favBtn.addEventListener('click', () => onToggleFavorite && onToggleFavorite());
+  }
+
+  const excludeBtn = containerEl.querySelector('[data-action="exclude"]');
+  if (excludeBtn) {
+    excludeBtn.addEventListener('click', () => onExclude && onExclude());
   }
 
   const similarBtn = containerEl.querySelector('[data-action="similar"]');
