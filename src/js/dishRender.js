@@ -1,4 +1,5 @@
 import { CATEGORIES } from './categoryFilter.js';
+import { getDishMoods, MOODS } from './moodFilter.js';
 
 /**
  * Định dạng số tiền sang định dạng Việt Nam Đồng (VD: 45000 -> 45.000đ)
@@ -64,6 +65,13 @@ function createDishCardHTML(dish, isFavorite) {
     ? dish.tags.map(tag => `<span class="tag-chip">#${tag}</span>`).join('')
     : '';
 
+  const moodsHTML = getDishMoods(dish)
+    .map(moodId => MOODS.find(mood => mood.id === moodId))
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(mood => `<span class="mood-chip">${mood.icon} ${mood.label}</span>`)
+    .join('');
+
   const fav = !!isFavorite(dish.id);
   const favLabel = fav ? 'Bỏ yêu thích' : 'Lưu yêu thích';
 
@@ -86,6 +94,9 @@ function createDishCardHTML(dish, isFavorite) {
         <p class="dish-description">${dish.description}</p>
         <div class="dish-tags">
           ${tagsHTML}
+        </div>
+        <div class="dish-moods" aria-label="Tâm trạng phù hợp">
+          ${moodsHTML}
         </div>
         <div class="dish-footer">
           <span class="dish-price">${formatCurrency(dish.price)}</span>

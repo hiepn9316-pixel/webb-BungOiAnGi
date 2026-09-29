@@ -1520,6 +1520,24 @@ body.modal-open {
   font-weight: 600;
 }
 
+.dish-moods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  min-height: 1.55rem;
+  margin-bottom: 0.8rem;
+}
+
+.mood-chip {
+  padding: 0.15rem 0.5rem;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
 .dish-footer {
   display: flex;
   align-items: center;

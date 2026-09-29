@@ -13,7 +13,7 @@ export const MOODS = [
   { id: 'mood-relax', label: 'Chill nhẹ', icon: '🧋', description: 'Thư giãn cùng món ngon' }
 ];
 
-const MOOD_TAG_RULES = {
+export const MOOD_TAG_RULES = {
   'mood-hungry': ['no'],
   'mood-light': ['thanh-mat', 'dinh-duong'],
   'mood-spicy': ['cay'],
@@ -27,23 +27,27 @@ const MOOD_TAG_RULES = {
   'mood-relax': ['thanh-mat', 'giai-khat']
 };
 
+export function getDishMoods(dish) {
+  if (!dish) return [];
+
+  const explicitMoods = Array.isArray(dish.moods) ? dish.moods : [];
+  const tags = dish.tags || [];
+  const matchedMoods = Object.entries(MOOD_TAG_RULES)
+    .filter(([, moodTags]) => moodTags.some(tag => tags.includes(tag)))
+    .map(([moodId]) => moodId);
+
+  if (dish.category === 'mon-nuoc') matchedMoods.push('mood-soup');
+  if (dish.category === 'an-vat') matchedMoods.push('mood-snack');
+  if (dish.type === 'chay' || dish.category === 'do-uong') matchedMoods.push('mood-light');
+
+  return [...new Set([...explicitMoods, ...matchedMoods])];
+}
+
 export function filterByMood(dishes, moodId) {
   if (!dishes || !Array.isArray(dishes)) return [];
   if (!moodId || moodId === 'tat-ca') return dishes;
 
-  return dishes.filter(dish => {
-    if (Array.isArray(dish.moods) && dish.moods.includes(moodId)) return true;
-
-    const tags = dish.tags || [];
-    const tagMatches = (MOOD_TAG_RULES[moodId] || []).some(tag => tags.includes(tag));
-    if (tagMatches) return true;
-
-    if (moodId === 'mood-soup') return dish.category === 'mon-nuoc';
-    if (moodId === 'mood-light') return dish.type === 'chay' || dish.category === 'do-uong';
-    if (moodId === 'mood-snack') return dish.category === 'an-vat';
-    if (moodId === 'mood-group') return dish.price >= 35000;
-    return false;
-  });
+  return dishes.filter(dish => getDishMoods(dish).includes(moodId));
 }
 
 export function renderMoodFilter(containerEl, activeMood, onMoodChange) {
