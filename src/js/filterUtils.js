@@ -8,6 +8,7 @@ export const POPULAR_TAGS = [
   'tat-ca',
   'cay',
   'no',
+  'ngot-ngao',
   'giai-khat',
   'tiet-kiem',
   'moi',

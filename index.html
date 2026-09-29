@@ -25,13 +25,27 @@
           <a href="#random" class="nav-link active" data-page="home">Trang chủ</a>
           <a href="#dishes" class="nav-link" data-page="dishes">Khám phá món</a>
           <a href="#wheel" class="nav-link" data-page="wheel">Vòng quay</a>
-          <a href="#duel" class="nav-link" data-page="duel">Đấu món</a>
+          <a href="#airdrop" class="nav-link" data-page="airdrop">Hòm thính</a>
+          <a href="#meal" class="nav-link" data-page="meal">Dựng bữa cơm</a>
         </nav>
-        <a href="#favorites" class="nav-fav-btn" data-page="favorites" id="nav-fav-btn" title="Xem gu ẩm thực của tôi">
-          <span class="nav-fav-icon">❤️</span>
-          <span class="nav-fav-text">Gu của tôi</span>
-          <span class="nav-fav-badge" id="nav-fav-badge">0</span>
-        </a>
+        <div class="nav-actions">
+          <button
+            type="button"
+            class="nav-sound-btn"
+            id="sound-toggle"
+            aria-label="Tắt âm thanh"
+            aria-pressed="true"
+            title="Tắt âm thanh"
+          >
+            <span class="nav-sound-icon" data-sound-icon>🔊</span>
+            <span class="nav-sound-text" data-sound-label>Âm thanh bật</span>
+          </button>
+          <a href="#favorites" class="nav-fav-btn" data-page="favorites" id="nav-fav-btn" title="Xem gu ẩm thực của tôi">
+            <span class="nav-fav-icon">❤️</span>
+            <span class="nav-fav-text">Gu của tôi</span>
+            <span class="nav-fav-badge" id="nav-fav-badge">0</span>
+          </a>
+        </div>
       </div>
     </header>
 
@@ -121,6 +135,7 @@
                 <option value="mon-com">🍚 Món cơm</option>
                 <option value="mon-kho">🥢 Món khô / Xào</option>
                 <option value="an-vat">🍡 Ăn vặt</option>
+                <option value="mon-ngot">🍮 Món ngọt</option>
                 <option value="do-uong">🧋 Đồ uống</option>
               </select>
 
@@ -142,6 +157,7 @@
                 <option value="tat-ca">🏷️ Tag: Tất cả</option>
                 <option value="cay">🌶️ #cay</option>
                 <option value="no">🍚 #no</option>
+                <option value="ngot-ngao">🍮 #ngot-ngao</option>
                 <option value="giai-khat">🍹 #giai-khat</option>
                 <option value="tiet-kiem">💰 #tiet-kiem</option>
                 <option value="moi">✨ #moi</option>
@@ -203,9 +219,14 @@
         <div id="wheel-container"></div>
       </section>
 
-      <!-- Đấu món 1 vs 1 -->
-      <section class="filter-section app-section is-page-hidden" id="duel" data-app-section>
-        <div id="duel-container"></div>
+      <!-- Bắn pháo gọi máy bay thả món ăn -->
+      <section class="filter-section app-section is-page-hidden" id="airdrop" data-app-section>
+        <div id="airdrop-container"></div>
+      </section>
+
+      <!-- Dựng bữa cơm hoàn chỉnh -->
+      <section class="filter-section app-section is-page-hidden" id="meal" data-app-section>
+        <div id="meal-container"></div>
       </section>
 
       <!-- Container hỗ trợ cho các component phụ (ẩn khi không dùng) -->

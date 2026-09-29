@@ -1,5 +1,9 @@
 /**
  * Danh mục món ăn hỗ trợ trong hệ thống BungOiAnGi
+ *
+ * `mon-ngot` tách riêng khỏi `an-vat` vì hai nhóm này khác hẳn nhau: ăn vặt là món
+ * ăn kèm để no bụng, còn món ngọt là chè bánh kết thúc bữa. Gộp chung làm danh mục
+ * Ăn vặt loè thành toàn món ngọt và kéo cả món ngọt vào nhầm các tâm trạng ăn nhẹ.
  */
 export const CATEGORIES = [
   { id: 'tat-ca', name: 'Tất cả', icon: '🍽️' },
@@ -7,6 +11,7 @@ export const CATEGORIES = [
   { id: 'mon-com', name: 'Món cơm', icon: '🍚' },
   { id: 'mon-kho', name: 'Món khô / Xào', icon: '🥢' },
   { id: 'an-vat', name: 'Ăn vặt', icon: '🍡' },
+  { id: 'mon-ngot', name: 'Món ngọt', icon: '🍮' },
   { id: 'do-uong', name: 'Đồ uống', icon: '🧋' }
 ];
 
