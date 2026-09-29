@@ -79,7 +79,6 @@ function buildResultCardHTML(dish, isFavorite, animate) {
         </div>
         <div class="roll-result-actions">
           <button type="button" class="btn-roll-reroll" data-action="reroll">🎲 Bốc lại</button>
-          <button type="button" class="btn-roll-detail" data-action="detail">👀 Xem chi tiết</button>
         </div>
       </div>
     </div>
@@ -95,20 +94,14 @@ function buildResultCardHTML(dish, isFavorite, animate) {
 export function renderRandomPanel(containerEl, state, handlers = {}) {
   if (!containerEl) return;
 
-  const { dish = null, message = '', poolSize = 0, isFavorite = false } = state;
-  const { onRoll, onReroll, onViewDetail, onToggleFavorite } = handlers;
+  const { dish = null, message = '', poolSize = 0, isFavorite = false, isRolling = false } = state;
+  const { onRoll, onReroll, onToggleFavorite } = handlers;
 
   // Chỉ chạy hiệu ứng khi món bốc thực sự thay đổi, không re-animate khi đổi bộ lọc
   const dishKey = dish ? String(dish.id) : '';
   const animate = Boolean(dish) && containerEl.dataset.renderedDishId !== dishKey;
   containerEl.dataset.renderedDishId = dishKey;
-
-  let resultHTML = `
-    <div class="roll-idle">
-      <span class="roll-idle-icon">🍽️</span>
-      <p>Chưa bốc món nào. Bấm nút <b>Bung! Ăn gì?</b> để bắt đầu!</p>
-    </div>
-  `;
+  let resultHTML = '';
 
   if (message) {
     resultHTML = `
@@ -122,19 +115,20 @@ export function renderRandomPanel(containerEl, state, handlers = {}) {
   }
 
   containerEl.innerHTML = `
-    <div class="random-panel">
-      <div class="random-panel-head">
-        <div>
-          <span class="section-kicker">Không biết ăn gì?</span>
-          <h2 class="random-panel-title">🎲 Bung! Ăn gì?</h2>
-          <p class="random-panel-hint">Bốc ngẫu nhiên trong các món đang khớp bộ lọc của bạn.</p>
+    <div class="random-panel random-panel--wireframe">
+      <div class="wireframe-hero-box">
+        <span class="wireframe-kicker">🍜 BungOiAnGi</span>
+        <h1 class="wireframe-title">HÔM NAY ĂN GÌ?</h1>
+        <p class="wireframe-slogan">"Để BungOiAnGi quyết định!"</p>
+        <div class="wireframe-btn-wrap">
+          <button type="button" class="btn-roll btn-roll--large${isRolling ? ' is-rolling' : ''}" data-action="roll" aria-label="Bụp! Ăn gì?" ${isRolling ? 'disabled' : ''}>
+            <span class="btn-roll-spark" aria-hidden="true">✦</span>
+            <span class="btn-roll-main">BỤP! ĂN GÌ</span>
+          </button>
         </div>
-        <div class="random-panel-action">
-          <button type="button" class="btn-roll" data-action="roll">🎲 Bung! Ăn gì?</button>
-          <span class="random-pool-count">${poolSize} món trong bể bốc</span>
-        </div>
+        <span class="wireframe-pool-hint">${poolSize} món sẵn sàng</span>
       </div>
-      <div class="roll-result">${resultHTML}</div>
+      ${message ? `<div class="roll-result roll-result--centered">${resultHTML}</div>` : ''}
     </div>
   `;
 
@@ -151,12 +145,4 @@ export function renderRandomPanel(containerEl, state, handlers = {}) {
 
   const rerollBtn = containerEl.querySelector('[data-action="reroll"]');
   if (rerollBtn) rerollBtn.addEventListener('click', () => onReroll && onReroll());
-
-  const detailBtn = containerEl.querySelector('[data-action="detail"]');
-  if (detailBtn) {
-    detailBtn.addEventListener('click', () => {
-      const card = containerEl.querySelector('.roll-result-card');
-      onViewDetail && onViewDetail(Number(card ? card.dataset.id : null));
-    });
-  }
 }
