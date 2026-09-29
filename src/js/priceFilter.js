@@ -9,6 +9,10 @@ export const PRICE_TIERS = [
   { id: 'choi-lon', name: 'Chơi lớn (70-150k)', icon: '👑', min: 70000, max: 150000 }
 ];
 
+export const BUDGET_PRESETS = [20000, 30000, 50000, 70000, 100000];
+const MIN_CUSTOM_BUDGET = 10000;
+const MAX_CUSTOM_BUDGET = 150000;
+
 /**
  * Lọc danh sách món ăn theo khoảng giá hoặc ngân sách tùy chỉnh
  * @param {Array} dishes - Danh sách món
@@ -83,29 +87,61 @@ export function renderPriceFilterUI(
   customBudgetBox.className = 'custom-budget-box';
 
   const budgetValue = customMaxBudget !== null && customMaxBudget > 0 ? customMaxBudget : '';
+  const sliderValue = budgetValue || 50000;
 
   customBudgetBox.innerHTML = `
-    <label for="budget-input" class="budget-label">🎯 Nhập ngân sách của bạn:</label>
+    <div class="budget-heading">
+      <label for="budget-input" class="budget-label">🎯 Ngân sách tối đa của bạn</label>
+      <strong class="budget-current-value">${budgetValue ? new Intl.NumberFormat('vi-VN').format(budgetValue) : 'Chưa chọn'}đ</strong>
+    </div>
+    <div class="budget-presets" aria-label="Ngân sách gợi ý">
+      ${BUDGET_PRESETS.map(preset => `
+        <button type="button" class="budget-preset ${Number(budgetValue) === preset ? 'active' : ''}" data-budget="${preset}">
+          ${new Intl.NumberFormat('vi-VN').format(preset)}đ
+        </button>
+      `).join('')}
+    </div>
+    <input
+      type="range"
+      id="budget-slider"
+      class="budget-slider"
+      min="${MIN_CUSTOM_BUDGET}"
+      max="${MAX_CUSTOM_BUDGET}"
+      step="5000"
+      value="${sliderValue}"
+      aria-label="Chọn ngân sách tối đa"
+    />
     <div class="budget-input-group">
       <input 
         type="number" 
         id="budget-input" 
         class="budget-input" 
-        placeholder="VD: 50000" 
-        min="0"
+        placeholder="VD: 50000"
+        min="${MIN_CUSTOM_BUDGET}"
+        max="${MAX_CUSTOM_BUDGET}"
         step="5000"
         value="${budgetValue}"
       />
       <span class="budget-suffix">đ</span>
       ${budgetValue ? '<button type="button" class="btn-clear-budget" title="Xóa ngân sách">✕</button>' : ''}
     </div>
+    <small class="budget-help">Chỉ hiển thị món có giá không vượt quá ngân sách đã chọn.</small>
   `;
 
-  // Sự kiện khi người dùng nhập số tiền
+  const sliderEl = customBudgetBox.querySelector('#budget-slider');
   const inputEl = customBudgetBox.querySelector('#budget-input');
-  inputEl.addEventListener('input', (e) => {
-    const val = parseInt(e.target.value, 10);
-    onCustomBudgetChange(isNaN(val) || val <= 0 ? null : val);
+  const presetEls = customBudgetBox.querySelectorAll('.budget-preset');
+
+  const applyBudget = value => {
+    const val = parseInt(value, 10);
+    onCustomBudgetChange(Number.isFinite(val) && val >= MIN_CUSTOM_BUDGET ? val : null);
+  };
+
+  sliderEl.addEventListener('change', e => applyBudget(e.target.value));
+  inputEl.addEventListener('change', e => applyBudget(e.target.value));
+
+  presetEls.forEach(presetEl => {
+    presetEl.addEventListener('click', () => applyBudget(presetEl.dataset.budget));
   });
 
   // Sự kiện xóa ô ngân sách
