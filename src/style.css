@@ -1078,6 +1078,57 @@ body {
   white-space: nowrap;
 }
 
+.active-filter-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  margin: 0.4rem 0 1.5rem;
+  padding: 0.8rem 1rem;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: var(--radius-md);
+}
+
+.active-filter-summary[hidden] {
+  display: none;
+}
+
+.active-filter-title {
+  color: #9a3412;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.active-filter-chips {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.active-filter-chip {
+  padding: 0.25rem 0.6rem;
+  background: #ffffff;
+  border: 1px solid #fdba74;
+  border-radius: 999px;
+  color: #7c2d12;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.btn-reset-filters {
+  padding: 0.45rem 0.75rem;
+  border: 1px solid #ea580c;
+  border-radius: 999px;
+  background: #ea580c;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 /* Dishes Grid (F01) */
 .dishes-grid {
   display: grid;
