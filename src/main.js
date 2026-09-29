@@ -1,8 +1,8 @@
 import './style.css';
-import { filterByCategory, renderCategoryTabs } from './js/categoryFilter.js';
-import { filterByPrice, renderPriceFilterUI } from './js/priceFilter.js';
-import { filterByDishType, filterByTag, renderDishTypeFilter, renderTagFilter, sortDishes } from './js/filterUtils.js';
-import { filterByMood, renderMoodFilter } from './js/moodFilter.js';
+import { CATEGORIES, filterByCategory, renderCategoryTabs } from './js/categoryFilter.js';
+import { BUDGET_GROUPS, filterByPrice, renderPriceFilterUI } from './js/priceFilter.js';
+import { DISH_TYPES, POPULAR_TAGS, filterByDishType, filterByTag, renderDishTypeFilter, renderTagFilter, sortDishes } from './js/filterUtils.js';
+import { MOODS, filterByMood, renderMoodFilter } from './js/moodFilter.js';
 import { filterByKeyword, renderSearchUI } from './js/searchFilter.js';
 import { renderDishList } from './js/dishRender.js';
 import { findDishById, pickRandomSimilar, renderDishDetail } from './js/dishDetail.js';
@@ -47,6 +47,7 @@ const priceContainer = document.getElementById('price-filter-container');
 const dishTypeContainer = document.getElementById('dish-type-filter-container');
 const dishTagContainer = document.getElementById('dish-tag-filter-container');
 const moodContainer = document.getElementById('mood-filter-container');
+const activeFilterSummary = document.getElementById('active-filter-summary');
 const dishesContainer = document.getElementById('dishes-container');
 const detailContainer = document.getElementById('dish-detail-container');
 const randomContainer = document.getElementById('random-dish-container');
@@ -136,6 +137,62 @@ function handleSortChange(newSort) {
   renderApp();
 }
 
+function resetAllFilters() {
+  activeKeyword = '';
+  activeCategory = 'tat-ca';
+  activePriceTier = 'tat-ca';
+  customMaxBudget = null;
+  activeDishType = 'tat-ca';
+  activeTag = 'tat-ca';
+  activeMood = 'tat-ca';
+  activeSort = 'recommended';
+  renderApp();
+}
+
+function renderActiveFilterSummary() {
+  if (!activeFilterSummary) return;
+
+  const labels = [];
+  if (activeKeyword.trim()) labels.push(`Từ khóa: ${activeKeyword.trim()}`);
+  if (activeCategory !== 'tat-ca') {
+    const category = CATEGORIES.find(item => item.id === activeCategory);
+    if (category) labels.push(category.name);
+  }
+  if (activePriceTier !== 'tat-ca' && !customMaxBudget) {
+    const tier = BUDGET_GROUPS.find(item => item.id === activePriceTier);
+    if (tier) labels.push(tier.name);
+  }
+  if (customMaxBudget) labels.push(`Ngân sách tối đa ${customMaxBudget.toLocaleString('vi-VN')}đ`);
+  if (activeDishType !== 'tat-ca') {
+    const type = DISH_TYPES.find(item => item.id === activeDishType);
+    if (type) labels.push(type.name);
+  }
+  if (activeTag !== 'tat-ca') {
+    const tag = POPULAR_TAGS.includes(activeTag) ? `#${activeTag}` : activeTag;
+    labels.push(tag);
+  }
+  if (activeMood !== 'tat-ca') {
+    const mood = MOODS.find(item => item.id === activeMood);
+    if (mood) labels.push(`${mood.icon} ${mood.label}`);
+  }
+
+  if (labels.length === 0) {
+    activeFilterSummary.innerHTML = '';
+    activeFilterSummary.hidden = true;
+    return;
+  }
+
+  activeFilterSummary.hidden = false;
+  activeFilterSummary.innerHTML = `
+    <span class="active-filter-title">Đang kết hợp ${labels.length} điều kiện:</span>
+    <div class="active-filter-chips">
+      ${labels.map(label => `<span class="active-filter-chip">${label}</span>`).join('')}
+    </div>
+    <button type="button" class="btn-reset-filters">Xóa tất cả</button>
+  `;
+  activeFilterSummary.querySelector('.btn-reset-filters').addEventListener('click', resetAllFilters);
+}
+
 /**
  * Cập nhật lại toàn bộ giao diện theo kết hợp đa bộ lọc
  */
@@ -177,6 +234,7 @@ function renderApp() {
   renderDishTypeFilter(dishTypeContainer, activeDishType, handleDishTypeChange);
   renderTagFilter(dishTagContainer, activeTag, handleTagChange);
   renderMoodFilter(moodContainer, activeMood, handleMoodChange);
+  renderActiveFilterSummary();
 
   if (dishesCountEl) {
     const total = allDishes.length;
