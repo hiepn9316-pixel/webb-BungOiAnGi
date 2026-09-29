@@ -27,18 +27,54 @@ export const MOOD_TAG_RULES = {
   'mood-relax': ['thanh-mat', 'giai-khat']
 };
 
+/** Danh mục món tráng miệng, xem thêm categoryFilter.js */
+const DESSERT_CATEGORY = 'mon-ngot';
+
+/**
+ * Tâm trạng sinh thêm theo danh mục. Trước đây mọi món chay và mọi món an-vat đều bị
+ * gán thẳng vào "Ăn nhẹ"/"Ăn vặt", nên khi thêm danh sách món ngọt vào an-vat thì cả
+ * bộ món ngọt tràn vào hai tâm trạng đó. Giờ chỉ suy ra tâm trạng khi món thuộc đúng
+ * danh mục, và món ngọt không mượn tâm trạng của danh mục khác.
+ */
+const CATEGORY_MOOD_RULES = {
+  'mon-nuoc': ['mood-soup'],
+  'an-vat': ['mood-snack'],
+  'do-uong': ['mood-light']
+};
+
+/**
+ * Tâm trạng không nhận món ngọt dù món đó có mang tag trùng khớp. "Đang đói",
+ * "Ăn cùng nhóm" và "Ăn vặt" nói về món ăn no và món ăn kèm để nhấn no, món ngọt
+ * không thỏa được ba ý này nên phải loại ra.
+ */
+const DESSERT_EXCLUDED_MOODS = ['mood-hungry', 'mood-group', 'mood-snack'];
+
+/** Món có phải món tráng miệng không */
+export function isDessert(dish) {
+  if (!dish) return false;
+  return dish.category === DESSERT_CATEGORY || (dish.tags || []).includes('ngot-ngao');
+}
+
 export function getDishMoods(dish) {
   if (!dish) return [];
 
   const explicitMoods = Array.isArray(dish.moods) ? dish.moods : [];
   const tags = dish.tags || [];
+  const dessert = isDessert(dish);
+
   const matchedMoods = Object.entries(MOOD_TAG_RULES)
     .filter(([, moodTags]) => moodTags.some(tag => tags.includes(tag)))
+    .filter(([moodId]) => !(dessert && DESSERT_EXCLUDED_MOODS.includes(moodId)))
     .map(([moodId]) => moodId);
 
-  if (dish.category === 'mon-nuoc') matchedMoods.push('mood-soup');
-  if (dish.category === 'an-vat') matchedMoods.push('mood-snack');
-  if (dish.type === 'chay' || dish.category === 'do-uong') matchedMoods.push('mood-light');
+  (CATEGORY_MOOD_RULES[dish.category] || []).forEach(moodId => {
+    if (!dessert && !matchedMoods.includes(moodId)) matchedMoods.push(moodId);
+  });
+
+  // Món chay vẫn hợp "Ăn nhẹ" như trước, chỉ trừ món ngọt vì chè bánh không phải bữa nhẹ
+  if (dish.type === 'chay' && !dessert && !matchedMoods.includes('mood-light')) {
+    matchedMoods.push('mood-light');
+  }
 
   return [...new Set([...explicitMoods, ...matchedMoods])];
 }

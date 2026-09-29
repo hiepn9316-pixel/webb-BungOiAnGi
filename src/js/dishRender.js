@@ -1,5 +1,7 @@
 import { CATEGORIES } from './categoryFilter.js';
 import { getDishMoods, MOODS } from './moodFilter.js';
+import { foodImageFallback } from './foodImages.js';
+import { rarityOf } from './foodRarity.js';
 
 /**
  * Định dạng số tiền sang định dạng Việt Nam Đồng (VD: 45000 -> 45.000đ)
@@ -74,6 +76,7 @@ function createDishCardHTML(dish, isFavorite) {
 
   const fav = !!isFavorite(dish.id);
   const favLabel = fav ? 'Bỏ yêu thích' : 'Lưu yêu thích';
+  const rarity = rarityOf(dish);
 
   return `
     <article
@@ -85,9 +88,10 @@ function createDishCardHTML(dish, isFavorite) {
       aria-label="Xem chi tiết món ${dish.name}"
     >
       <div class="dish-image-wrapper">
-        <img src="${dish.image}" alt="${dish.name}" class="dish-image" loading="lazy" onerror="this.onerror=null;this.src='https://via.placeholder.com/400x300?text=BungOiAnGi';" />
+        <img src="${dish.image}" alt="${dish.name}" class="dish-image" loading="lazy" onerror="this.onerror=null;this.src='${foodImageFallback(dish.name)}';" />
         <span class="category-badge">${categoryName}</span>
         ${typeBadge}
+        <span class="dish-rarity" data-rarity="${rarity.id}" title="Bậc hiếm tính theo giá: ${rarity.label}">${rarity.icon}</span>
       </div>
       <div class="dish-content">
         <h3 class="dish-title">${dish.name}</h3>

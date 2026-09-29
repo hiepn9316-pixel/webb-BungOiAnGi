@@ -5,9 +5,9 @@ export const STORAGE_KEYS = {
   FAVORITES: 'bungoi_favorites',
   HISTORY: 'bungoi_history',
   EXCLUDED: 'bungoi_excluded',
+  MEALS: 'bungoi_meals',
   STATS: 'bungoi_stats',
-  ACHIEVEMENTS: 'bungoi_achievements',
-  DUEL: 'bungoi_duel'
+  ACHIEVEMENTS: 'bungoi_achievements'
 };
 
 /**
@@ -16,9 +16,9 @@ export const STORAGE_KEYS = {
 export const MAX_HISTORY = 10;
 
 /**
- * Số kỳ đấu 1vs1 tối đa được giữ lại (F09)
+ * Số bữa ăn tối đa được ghi trong sổ bữa đã dọn
  */
-export const MAX_DUEL_RECORDS = 10;
+export const MAX_MEAL_RECORDS = 8;
 
 /**
  * Đọc một mảng số ID từ localStorage, luôn trả về mảng hợp lệ
@@ -193,63 +193,46 @@ export function addHistory(id, name = '') {
   return next;
 }
 
-/* ============ F09 - Kết quả đấu món 1 vs 1 ============ */
+/* ============ Sổ bữa ăn đã dọn ============ */
 
 /**
- * Đọc toàn bộ dữ liệu đấu 1vs1 đã lưu: danh sách kỳ đấu + bảng tổng số lượt thắng
- * @returns {{ duels: Array<Object>, wins: Object<number, {name: string, count: number}> }}
+ * Đọc sổ những bữa ăn đã dọn, mới nhất trước
+ * @returns {Array<{ dishes: Array<{id: number, name: string, price: number}>, total: number, at: number }>}
  */
-export function getDuelRecords() {
-  const empty = { duels: [], wins: {} };
-
+export function getMealRecords() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.DUEL);
-    if (!raw) return empty;
+    const raw = localStorage.getItem(STORAGE_KEYS.MEALS);
+    if (!raw) return [];
 
     const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return empty;
+    if (!Array.isArray(parsed)) return [];
 
-    return {
-      duels: Array.isArray(parsed.duels) ? parsed.duels : [],
-      wins: parsed.wins && typeof parsed.wins === 'object' && !Array.isArray(parsed.wins) ? parsed.wins : {}
-    };
+    return parsed.filter(item => item && Array.isArray(item.dishes) && item.dishes.length > 0);
   } catch (error) {
-    console.warn(`Không đọc được "${STORAGE_KEYS.DUEL}" từ localStorage:`, error);
-    return empty;
+    console.warn(`Không đọc được "${STORAGE_KEYS.MEALS}" từ localStorage:`, error);
+    return [];
   }
 }
 
 /**
- * Lưu kết quả một kỳ đấu 1vs1 và cộng dồn số lượt thắng của nhà vô địch
- * @param {Object} result - Kết quả từ getDuelResult() trong duel.js
- * @returns {{ duels: Array<Object>, wins: Object }} Dữ liệu sau khi cập nhật
+ * Ghi một bữa ăn vừa dọn vào sổ, giữ tối đa MAX_MEAL_RECORDS bữa gần nhất
+ * @param {Array<Object>} dishes - Các món trong bữa
+ * @param {number} total - Tổng giá của bữa
+ * @returns {Array<Object>} Sổ bữa ăn sau khi cập nhật
  */
-export function saveDuelResult(result) {
-  if (!result || !result.championId || !result.championName) {
-    return getDuelRecords();
-  }
+export function saveMealRecord(dishes, total) {
+  const safeDishes = Array.isArray(dishes)
+    ? dishes.filter(Boolean).map(dish => ({ id: dish.id, name: dish.name, price: dish.price }))
+    : [];
+  if (safeDishes.length === 0) return getMealRecords();
 
-  const { duels, wins } = getDuelRecords();
-  const dishId = String(result.championId);
-
-  const record = {
-    championId: result.championId,
-    championName: result.championName,
-    rounds: result.rounds,
-    size: result.size,
-    won: result.won,
-    at: result.at
-  };
-
-  const previous = wins[dishId] || { name: result.championName, count: 0 };
-  wins[dishId] = { name: result.championName, count: (previous.count || 0) + 1 };
-
-  const next = { duels: [record, ...duels].slice(0, MAX_DUEL_RECORDS), wins };
+  const record = { dishes: safeDishes, total, at: Date.now() };
+  const next = [record, ...getMealRecords()].slice(0, MAX_MEAL_RECORDS);
 
   try {
-    localStorage.setItem(STORAGE_KEYS.DUEL, JSON.stringify(next));
+    localStorage.setItem(STORAGE_KEYS.MEALS, JSON.stringify(next));
   } catch (error) {
-    console.warn(`Không ghi được "${STORAGE_KEYS.DUEL}" vào localStorage:`, error);
+    console.warn(`Không ghi được "${STORAGE_KEYS.MEALS}" vào localStorage:`, error);
   }
 
   return next;

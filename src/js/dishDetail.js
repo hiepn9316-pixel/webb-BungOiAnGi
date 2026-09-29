@@ -1,5 +1,7 @@
 import { formatCurrency, getCategoryName } from './dishRender.js';
 import { DISH_TYPES } from './filterUtils.js';
+import { foodImageFallback } from './foodImages.js';
+import { rarityOf } from './foodRarity.js';
 
 /**
  * Tìm một món ăn theo ID
@@ -90,10 +92,15 @@ function buildDetailContentHTML(dish, isFavorite, isExcluded, notice) {
     ? `<div class="detail-notice">${notice}</div>`
     : '';
 
+  // Bậc hiếm suy ra từ giá, dùng chung với âm thanh lúc món lộ ra nên người dùng
+  // thấy trước lý do tiếng vừa nghe "nặng" hay "nhẹ"
+  const rarity = rarityOf(dish);
+
   return `
     <div class="detail-badges">
       <span class="detail-badge">🍽️ ${getCategoryName(dish.category)}</span>
       ${typeBadge}
+      <span class="detail-badge detail-badge-rarity" data-rarity="${rarity.id}">${rarity.icon} ${rarity.label}</span>
     </div>
     <h2 class="detail-name" id="dish-detail-name">${dish.name}</h2>
     <p class="detail-price">${formatCurrency(dish.price)}</p>
@@ -122,6 +129,37 @@ function buildDetailContentHTML(dish, isFavorite, isExcluded, notice) {
  * @param {Object} dish - Món ăn cần hiển thị
  * @param {Object} handlers - { isFavorite, notice, onClose, onToggleFavorite, onSimilar }
  */
+/**
+ * Lớp ăn mừng phủ lên modal khi món vừa được bốc trúng.
+ * Dùng emoji và CSS thuần nên không tốn thêm tài nguyên ảnh.
+ * @returns {string} HTML string
+ */
+function buildCelebrationHTML() {
+  const pieces = ['🍜', '🌶️', '🥢', '✨', '🍚', '🥟', '💛', '🌟'];
+  const items = Array.from({ length: 18 }, (_, i) => {
+    const piece = pieces[i % pieces.length];
+    const left = (i / 18) * 100;
+    const drift = ((i * 41) % 70) - 35;
+    const delay = ((i * 47) % 50) / 100;
+    return `<span class="roll-confetti-piece" style="left:${left.toFixed(1)}%;--confetti-x:${drift}px;--confetti-delay:${delay.toFixed(2)}s">${piece}</span>`;
+  }).join('');
+
+  return `
+    <div class="modal-celebrate" aria-hidden="true">
+      <span class="roll-rays"></span>
+      <span class="roll-shock"></span>
+      <span class="roll-shock roll-shock--two"></span>
+      <div class="roll-confetti">${items}</div>
+    </div>
+  `;
+}
+
+/**
+ * Render modal chi tiết món
+ * @param {HTMLElement} containerEl - Container chứa modal
+ * @param {Object} dish - Món cần hiển thị
+ * @param {Object} handlers - { isFavorite, isExcluded, notice, celebrate, onClose, onToggleFavorite, onExclude, onSimilar }
+ */
 export function renderDishDetail(containerEl, dish, handlers = {}) {
   if (!containerEl) return;
 
@@ -134,6 +172,7 @@ export function renderDishDetail(containerEl, dish, handlers = {}) {
     isFavorite = false,
     isExcluded = false,
     notice = '',
+    celebrate = false,
     onClose,
     onToggleFavorite,
     onExclude,
@@ -141,14 +180,16 @@ export function renderDishDetail(containerEl, dish, handlers = {}) {
   } = handlers;
 
   containerEl.innerHTML = `
-    <div class="modal-overlay active" id="dish-detail-overlay">
+    <div class="modal-overlay active${celebrate ? ' is-celebrate' : ''}" id="dish-detail-overlay">
+      ${celebrate ? buildCelebrationHTML() : ''}
       <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="dish-detail-name">
+        ${celebrate ? '<span class="modal-celebrate-badge">🎉 VỪA BỐC TRÚNG</span>' : ''}
         <button type="button" class="modal-close" data-action="close" aria-label="Đóng chi tiết món">✕</button>
         <img
           class="modal-image"
           src="${dish.image}"
           alt="${dish.name}"
-          onerror="this.onerror=null;this.src='https://via.placeholder.com/800x500?text=BungOiAnGi';"
+          onerror="this.onerror=null;this.src='${foodImageFallback('Ảnh lỗi')}';"
         />
         <div class="modal-content">
           ${buildDetailContentHTML(dish, isFavorite, isExcluded, notice)}
