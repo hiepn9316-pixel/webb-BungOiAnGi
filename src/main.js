@@ -2,6 +2,7 @@ import './style.css';
 import { filterByCategory, renderCategoryTabs } from './js/categoryFilter.js';
 import { filterByPrice, renderPriceFilterUI } from './js/priceFilter.js';
 import { filterByDishType, filterByTag, renderDishTypeFilter, renderTagFilter, sortDishes } from './js/filterUtils.js';
+import { filterByMood, renderMoodFilter } from './js/moodFilter.js';
 import { filterByKeyword, renderSearchUI } from './js/searchFilter.js';
 import { renderDishList } from './js/dishRender.js';
 import { findDishById, pickRandomSimilar, renderDishDetail } from './js/dishDetail.js';
@@ -26,6 +27,7 @@ let activePriceTier = 'tat-ca';
 let customMaxBudget = null;
 let activeDishType = 'tat-ca';
 let activeTag = 'tat-ca';
+let activeMood = 'tat-ca';
 let activeSort = 'recommended';
 let selectedDishId = null;
 let detailNotice = '';
@@ -44,6 +46,7 @@ const categoryContainer = document.getElementById('category-filter-container');
 const priceContainer = document.getElementById('price-filter-container');
 const dishTypeContainer = document.getElementById('dish-type-filter-container');
 const dishTagContainer = document.getElementById('dish-tag-filter-container');
+const moodContainer = document.getElementById('mood-filter-container');
 const dishesContainer = document.getElementById('dishes-container');
 const detailContainer = document.getElementById('dish-detail-container');
 const randomContainer = document.getElementById('random-dish-container');
@@ -123,6 +126,11 @@ function handleTagChange(newTag) {
   renderApp();
 }
 
+function handleMoodChange(newMood) {
+  activeMood = newMood;
+  renderApp();
+}
+
 function handleSortChange(newSort) {
   activeSort = newSort;
   renderApp();
@@ -137,6 +145,7 @@ function renderApp() {
   filtered = filterByPrice(filtered, activePriceTier, customMaxBudget);
   filtered = filterByDishType(filtered, activeDishType);
   filtered = filterByTag(filtered, activeTag);
+  filtered = filterByMood(filtered, activeMood);
   filtered = sortDishes(filtered, activeSort);
 
   currentFiltered = filtered;
@@ -167,6 +176,7 @@ function renderApp() {
 
   renderDishTypeFilter(dishTypeContainer, activeDishType, handleDishTypeChange);
   renderTagFilter(dishTagContainer, activeTag, handleTagChange);
+  renderMoodFilter(moodContainer, activeMood, handleMoodChange);
 
   if (dishesCountEl) {
     const total = allDishes.length;
