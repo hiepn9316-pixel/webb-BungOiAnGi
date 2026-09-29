@@ -104,6 +104,59 @@ export function getExcludedIds() {
 }
 
 /**
+ * Thêm món vào danh sách không thích
+ * @param {number} id
+ * @returns {boolean}
+ */
+export function addExcluded(id) {
+  const dishId = Number(id);
+
+  if (!Number.isFinite(dishId)) {
+    return false;
+  }
+
+  const list = getExcludedIds();
+
+  if (list.includes(dishId)) {
+    return false;
+  }
+
+  list.push(dishId);
+  writeIdList(STORAGE_KEYS.EXCLUDED, list);
+
+  return true;
+}
+
+/**
+ * Xóa món khỏi danh sách không thích
+ * @param {number} id
+ * @returns {boolean}
+ */
+export function removeExcluded(id) {
+  const dishId = Number(id);
+  const list = getExcludedIds();
+
+  const next = list.filter(item => item !== dishId);
+
+  if (next.length === list.length) {
+    return false;
+  }
+
+  writeIdList(STORAGE_KEYS.EXCLUDED, next);
+
+  return true;
+}
+
+/**
+ * Kiểm tra món có nằm trong danh sách không thích không
+ * @param {number} id
+ * @returns {boolean}
+ */
+export function isExcluded(id) {
+  return getExcludedIds().includes(Number(id));
+}
+
+/**
  * Lấy danh sách lịch sử món, mới nhất trước (BR05: tối đa 10 món)
  * @returns {Array<Object>}
  */

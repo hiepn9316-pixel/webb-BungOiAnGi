@@ -7,7 +7,18 @@ import { filterByKeyword, renderSearchUI } from './js/searchFilter.js';
 import { renderDishList } from './js/dishRender.js';
 import { findDishById, pickRandomSimilar, renderDishDetail } from './js/dishDetail.js';
 import { filterOutExcluded, pickRandomDish, renderRandomPanel } from './js/randomDish.js';
-import { addHistory, getDuelRecords, getExcludedIds, isFavorite, saveDuelResult, toggleFavorite } from './js/storage.js';
+import {
+  addExcluded,
+  addHistory,
+  getDuelRecords,
+  getExcludedIds,
+  isExcluded,
+  isFavorite,
+  removeExcluded,
+  saveDuelResult,
+  toggleFavorite
+} from './js/storage.js';
+
 import {
   DUEL_PHASE,
   DEFAULT_DUEL_ROUNDS,
@@ -431,6 +442,7 @@ function renderSelectedDetail() {
 
   renderDishDetail(detailContainer, dish, {
     isFavorite: isFavorite(dish.id),
+    isExcluded: isExcluded(dish.id),
     notice: detailNotice,
     onClose: closeDishDetail,
     onToggleFavorite: () => {
@@ -439,6 +451,22 @@ function renderSelectedDetail() {
       syncFavoriteButton(dish.id, added);
       renderSelectedDetail();
     },
+
+    onExclude: () => {
+      const excluded = isExcluded(dish.id);
+
+      if (excluded) {
+        removeExcluded(dish.id);
+        detailNotice = `Đã bỏ "${dish.name}" khỏi danh sách không thích.`;
+      } else {
+        addExcluded(dish.id);
+        detailNotice = `Đã thêm "${dish.name}" vào danh sách không thích. Món này sẽ không xuất hiện khi bốc ngẫu nhiên.`;
+      }
+
+      renderSelectedDetail();
+      renderRandomPanelState();
+    },
+
     onSimilar: () => {
       const next = pickRandomSimilar(allDishes, dish, getExcludedIds());
       if (!next) {
