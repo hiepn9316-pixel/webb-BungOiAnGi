@@ -1,12 +1,17 @@
 /**
- * Các khoảng giá mặc định theo đặc tả SRS F07
+ * Bốn nhóm ngân sách chính. Các mốc cuối dùng giá trị -1 để tránh
+ * một món 20k hoặc 40k bị xuất hiện ở hai nhóm cùng lúc.
  */
+export const BUDGET_GROUPS = [
+  { id: 'sinh-ton', name: 'Sinh tồn (dưới 20k)', icon: '💸', min: 0, max: 19999 },
+  { id: 'sinh-vien', name: 'Sinh viên (20-40k)', icon: '🎓', min: 20000, max: 39999 },
+  { id: 'an-ngon', name: 'Ăn ngon (40-70k)', icon: '😋', min: 40000, max: 69999 },
+  { id: 'choi-lon', name: 'Chơi lớn (70-150k)', icon: '👑', min: 70000, max: 150000 }
+];
+
 export const PRICE_TIERS = [
   { id: 'tat-ca', name: 'Tất cả giá', icon: '💰', min: 0, max: Infinity },
-  { id: 'sinh-ton', name: 'Sinh tồn (<20k)', icon: '💸', min: 0, max: 20000 },
-  { id: 'sinh-vien', name: 'Sinh viên (20-40k)', icon: '🎓', min: 20000, max: 40000 },
-  { id: 'an-ngon', name: 'Ăn ngon (40-70k)', icon: '😋', min: 40000, max: 70000 },
-  { id: 'choi-lon', name: 'Chơi lớn (70-150k)', icon: '👑', min: 70000, max: 150000 }
+  ...BUDGET_GROUPS
 ];
 
 export const BUDGET_PRESETS = [20000, 30000, 50000, 70000, 100000];
