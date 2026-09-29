@@ -1,12 +1,11 @@
 /**
- * Bốn nhóm ngân sách chính. Các mốc cuối dùng giá trị -1 để tránh
- * một món 20k hoặc 40k bị xuất hiện ở hai nhóm cùng lúc.
+ * Bốn nhóm ngân sách chính, dùng khoảng nửa mở [min, max) để không chồng lấn.
  */
 export const BUDGET_GROUPS = [
-  { id: 'sinh-ton', name: 'Sinh tồn (dưới 20k)', icon: '💸', min: 0, max: 19999 },
-  { id: 'sinh-vien', name: 'Sinh viên (20-40k)', icon: '🎓', min: 20000, max: 39999 },
-  { id: 'an-ngon', name: 'Ăn ngon (40-70k)', icon: '😋', min: 40000, max: 69999 },
-  { id: 'choi-lon', name: 'Chơi lớn (70-150k)', icon: '👑', min: 70000, max: 150000 }
+  { id: 'sinh-ton', name: 'Sinh tồn (dưới 20k)', icon: '💸', min: 0, max: 20000 },
+  { id: 'sinh-vien', name: 'Sinh viên (20-40k)', icon: '🎓', min: 20000, max: 40000 },
+  { id: 'an-ngon', name: 'Ăn ngon (40-70k)', icon: '😋', min: 40000, max: 70000 },
+  { id: 'choi-lon', name: 'Chơi lớn (70k+)', icon: '👑', min: 70000, max: Infinity }
 ];
 
 export const PRICE_TIERS = [
@@ -28,7 +27,7 @@ const MAX_CUSTOM_BUDGET = 150000;
 export function filterByPrice(dishes, priceTierId, customMaxBudget = null) {
   if (!dishes || !Array.isArray(dishes)) return [];
 
-  // Ưu tiên 1: Lọc theo ngân sách tùy chỉnh nếu người dùng có nhập
+  // Ưu tiên 1: Lọc theo ngân sách tùy chỉnh nếu người dùng có nhập (bao gồm cả ngân sách đúng bằng giá món)
   if (customMaxBudget !== null && customMaxBudget > 0) {
     return dishes.filter(dish => dish.price <= customMaxBudget);
   }
@@ -39,7 +38,7 @@ export function filterByPrice(dishes, priceTierId, customMaxBudget = null) {
     return dishes;
   }
 
-  return dishes.filter(dish => dish.price >= tier.min && dish.price <= tier.max);
+  return dishes.filter(dish => dish.price >= tier.min && dish.price < tier.max);
 }
 
 /**
@@ -59,8 +58,57 @@ export function renderPriceFilterUI(
 ) {
   if (!containerEl) return;
 
-  containerEl.innerHTML = '';
+  const hasCustomBudget = customMaxBudget !== null && customMaxBudget > 0;
 
+  // Dựng DOM một lần duy nhất để không mất focus khi người dùng đang nhập
+  if (!containerEl.querySelector('.price-filter-wrapper')) {
+    containerEl.innerHTML = '';
+    buildPriceFilterUI(containerEl, onSelectPriceTier, onCustomBudgetChange);
+  }
+
+  const wrapper = containerEl.querySelector('.price-filter-wrapper');
+
+  // Đồng bộ trạng thái active của các khoảng giá preset
+  wrapper.querySelectorAll('.price-tab').forEach(btn => {
+    const isActive = !hasCustomBudget && btn.dataset.priceId === activePriceTierId;
+    btn.classList.toggle('active', isActive);
+  });
+
+  // Đồng bộ ô ngân sách, không ghi đè giá trị khi người dùng đang gõ
+  const inputEl = containerEl.querySelector('#budget-input');
+  if (inputEl && document.activeElement !== inputEl) {
+    inputEl.value = hasCustomBudget ? customMaxBudget : '';
+  }
+
+  const sliderEl = containerEl.querySelector('#budget-slider');
+  if (sliderEl && document.activeElement !== sliderEl) {
+    sliderEl.value = hasCustomBudget ? customMaxBudget : 50000;
+  }
+
+  const currentValueEl = containerEl.querySelector('.budget-current-value');
+  if (currentValueEl) {
+    currentValueEl.textContent = hasCustomBudget
+      ? `${new Intl.NumberFormat('vi-VN').format(customMaxBudget)}đ`
+      : 'Chưa chọn';
+  }
+
+  wrapper.querySelectorAll('.budget-preset').forEach(btn => {
+    btn.classList.toggle('active', hasCustomBudget && Number(btn.dataset.budget) === customMaxBudget);
+  });
+
+  const clearBtn = containerEl.querySelector('.btn-clear-budget');
+  if (clearBtn) {
+    clearBtn.hidden = !hasCustomBudget;
+  }
+}
+
+/**
+ * Khởi tạo DOM cho bộ lọc khoảng giá và ô nhập ngân sách (chỉ chạy 1 lần)
+ * @param {HTMLElement} containerEl 
+ * @param {Function} onSelectPriceTier 
+ * @param {Function} onCustomBudgetChange 
+ */
+function buildPriceFilterUI(containerEl, onSelectPriceTier, onCustomBudgetChange) {
   const wrapper = document.createElement('div');
   wrapper.className = 'price-filter-wrapper';
 
@@ -71,8 +119,7 @@ export function renderPriceFilterUI(
   PRICE_TIERS.forEach(tier => {
     const btn = document.createElement('button');
     btn.type = 'button';
-    const isActive = (customMaxBudget === null || customMaxBudget <= 0) && tier.id === activePriceTierId;
-    btn.className = `price-tab ${isActive ? 'active' : ''}`;
+    btn.className = 'price-tab';
     btn.dataset.priceId = tier.id;
 
     btn.innerHTML = `
@@ -91,8 +138,8 @@ export function renderPriceFilterUI(
   const customBudgetBox = document.createElement('div');
   customBudgetBox.className = 'custom-budget-box';
 
-  const budgetValue = customMaxBudget !== null && customMaxBudget > 0 ? customMaxBudget : '';
-  const sliderValue = budgetValue || 50000;
+  const budgetValue = '';
+  const sliderValue = 50000;
 
   customBudgetBox.innerHTML = `
     <div class="budget-heading">
@@ -125,10 +172,11 @@ export function renderPriceFilterUI(
         min="${MIN_CUSTOM_BUDGET}"
         max="${MAX_CUSTOM_BUDGET}"
         step="5000"
-        value="${budgetValue}"
+        inputmode="numeric"
+        aria-label="Nhập ngân sách tối đa"
       />
       <span class="budget-suffix">đ</span>
-      ${budgetValue ? '<button type="button" class="btn-clear-budget" title="Xóa ngân sách">✕</button>' : ''}
+      <button type="button" class="btn-clear-budget" title="Xóa ngân sách" aria-label="Xóa ngân sách" hidden>✕</button>
     </div>
     <small class="budget-help">Chỉ hiển thị món có giá không vượt quá ngân sách đã chọn.</small>
   `;
@@ -151,11 +199,11 @@ export function renderPriceFilterUI(
 
   // Sự kiện xóa ô ngân sách
   const clearBtn = customBudgetBox.querySelector('.btn-clear-budget');
-  if (clearBtn) {
-    clearBtn.addEventListener('click', () => {
-      onCustomBudgetChange(null);
-    });
-  }
+  clearBtn.addEventListener('click', () => {
+    inputEl.value = '';
+    onCustomBudgetChange(null);
+    inputEl.focus();
+  });
 
   wrapper.appendChild(tabsContainer);
   wrapper.appendChild(customBudgetBox);

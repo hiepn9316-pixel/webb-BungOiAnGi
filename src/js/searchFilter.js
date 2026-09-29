@@ -27,6 +27,7 @@ export function filterByKeyword(dishes, keyword) {
   }
 
   const cleanKeyword = removeVietnameseTones(keyword);
+  if (!cleanKeyword) return dishes;
 
   return dishes.filter(dish => {
     const cleanName = removeVietnameseTones(dish.name);
@@ -48,10 +49,25 @@ export function filterByKeyword(dishes, keyword) {
 export function renderSearchUI(containerEl, currentKeyword, onSearchInput) {
   if (!containerEl) return;
 
+  const keyword = currentKeyword || '';
+
+  // Giữ nguyên DOM đang có để không mất focus/con trỏ khi người dùng gõ từ khoá
+  const existingInput = containerEl.querySelector('#search-input');
+  if (existingInput) {
+    if (existingInput.value !== keyword) {
+      existingInput.value = keyword;
+    }
+    const existingClearBtn = containerEl.querySelector('.btn-clear-search');
+    if (existingClearBtn) {
+      existingClearBtn.hidden = !keyword.trim();
+    }
+    return;
+  }
+
   containerEl.innerHTML = '';
 
   const searchBox = document.createElement('div');
-  searchBox.className = 'search-box-wrapper';
+  searchBox.className = 'search-wrapper';
 
   searchBox.innerHTML = `
     <div class="search-input-group">
@@ -61,24 +77,37 @@ export function renderSearchUI(containerEl, currentKeyword, onSearchInput) {
         id="search-input" 
         class="search-input" 
         placeholder="Nhập tên món ăn (ví dụ: bún bò, mì cay, cơm tấm)..." 
-        value="${currentKeyword || ''}"
+        value="${keyword}"
+        aria-label="Tìm kiếm món ăn theo tên"
         autocomplete="off"
       />
-      ${currentKeyword ? '<button type="button" class="btn-clear-search" title="Xóa từ khóa">✕</button>' : ''}
+      <button type="button" class="btn-clear-search" title="Xóa từ khóa" aria-label="Xóa từ khóa" hidden>✕</button>
     </div>
   `;
 
   const inputEl = searchBox.querySelector('#search-input');
+
   inputEl.addEventListener('input', (e) => {
     onSearchInput(e.target.value);
   });
 
-  const clearBtn = searchBox.querySelector('.btn-clear-search');
-  if (clearBtn) {
-    clearBtn.addEventListener('click', () => {
+  inputEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      inputEl.blur();
+    }
+    if (e.key === 'Escape' && inputEl.value) {
+      e.preventDefault();
       onSearchInput('');
-    });
-  }
+    }
+  });
+
+  const clearBtn = searchBox.querySelector('.btn-clear-search');
+  clearBtn.hidden = !keyword.trim();
+  clearBtn.addEventListener('click', () => {
+    onSearchInput('');
+    inputEl.focus();
+  });
 
   containerEl.appendChild(searchBox);
 }
