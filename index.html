@@ -1,145 +1,158 @@
 <!doctype html>
 <html lang="vi">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Bụng Ơi Ăn Gì? - Tìm Kiếm & Lựa Chọn Món Ăn</title>
-    <title>BungOiAnGi - Trợ lý quyết định ăn gì</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  </head>
-  <body>
-    <div id="app">
-      <!-- Top Navigation Bar -->
-      <header class="navbar">
-        <div class="nav-container">
-          <a href="#" class="brand">
-            <span class="brand-logo">🍜</span>
-            <span class="brand-title">BungOiAnGi</span>
-          </a>
-          <nav class="nav-links">
-            <a href="#" class="nav-link active">Tất cả món</a>
-            <a href="#" class="nav-link">Ăn theo tâm trạng</a>
-            <a href="#" class="nav-link">Ngân sách</a>
-            <a href="#" class="nav-link">Bung! Random</a>
-          </nav>
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bụng Ơi Ăn Gì? - Tìm Kiếm & Lựa Chọn Món Ăn</title>
+  <title>BungOiAnGi - Trợ lý quyết định ăn gì</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
+</head>
+
+<body>
+  <div id="app">
+    <!-- Top Navigation Bar -->
+    <header class="navbar">
+      <div class="nav-container">
+        <a href="#" class="brand">
+          <span class="brand-logo">🍜</span>
+          <span class="brand-title">BungOiAnGi</span>
+        </a>
+        <nav class="nav-links">
+          <a href="#" class="nav-link active">Tất cả món</a>
+          <a href="#" class="nav-link">Ăn theo tâm trạng</a>
+          <a href="#" class="nav-link">Ngân sách</a>
+          <a href="#" class="nav-link">Bung! Random</a>
+        </nav>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Hero Banner -->
+      <section class="hero-section">
+        <div class="hero-content">
+          <span class="eyebrow">Khám phá món</span>
+          <h1 class="hero-title">Hôm nay bạn muốn ăn gì? 😋</h1>
+          <p class="hero-subtitle">Chọn danh mục yêu thích hoặc lọc theo khoảng giá ngân sách nhé!</p>
+          <div class="hero-badges" aria-label="Thông tin gợi ý món ăn">
+            <span>50+ món ngon</span>
+            <span>Giá phù hợp</span>
+            <span>Gợi ý nhanh</span>
+          </div>
         </div>
-      </header>
+      </section>
 
-      <!-- Main Content -->
-      <main class="main-content">
-        <!-- Hero Banner -->
-        <section class="hero-section">
-          <div class="hero-content">
-            <span class="eyebrow">Khám phá món</span>
-            <h1 class="hero-title">Hôm nay bạn muốn ăn gì? 😋</h1>
-            <p class="hero-subtitle">Chọn danh mục yêu thích hoặc lọc theo khoảng giá ngân sách nhé!</p>
-            <div class="hero-badges" aria-label="Thông tin gợi ý món ăn">
-              <span>50+ món ngon</span>
-              <span>Giá phù hợp</span>
-              <span>Gợi ý nhanh</span>
-            </div>
+      <!-- Random Dish Section (F05) -->
+      <section class="filter-section">
+        <div id="random-dish-container"></div>
+      </section>
+
+      <!-- Duel 1 vs 1 Section (F09) -->
+      <section class="filter-section">
+        <div id="duel-container"></div>
+      </section>
+
+      <!-- History Section -->
+      <section class="filter-section">
+        <div class="section-header">
+          <h2>Lịch sử món ăn</h2>
+        </div>
+        <div id="history-container"></div>
+      </section>
+
+      <!-- Search Dishes Section (F02) -->
+      <section class="filter-section">
+        <div class="section-header">
+          <h2>Tìm kiếm món ăn</h2>
+        </div>
+        <div id="search-container"></div>
+        <p class="search-hint">💡 Không phân biệt hoa/thường và không dấu — gõ <b>bún</b>, <b>BUN</b> hay <b>Bún Bò</b>
+          đều cho kết quả tương tự.</p>
+      </section>
+
+      <!-- Mood Filter Section -->
+      <section class="filter-section mood-section">
+        <div class="section-header">
+          <div>
+            <span class="section-kicker">Ăn theo cảm xúc</span>
+            <h2>Bạn đang muốn ăn theo tâm trạng nào?</h2>
           </div>
-        </section>
+        </div>
+        <div id="mood-filter-container"></div>
+      </section>
 
-        <!-- Random Dish Section (F05) -->
-        <section class="filter-section">
-          <div id="random-dish-container"></div>
-        </section>
+      <!-- Category Filter Section (F03) -->
+      <section class="filter-section">
+        <div class="section-header">
+          <h2>Lọc món theo danh mục</h2>
+        </div>
+        <div id="category-filter-container"></div>
+      </section>
 
-        <!-- Duel 1 vs 1 Section (F09) -->
-        <section class="filter-section">
-          <div id="duel-container"></div>
-        </section>
+      <!-- Price Range & Budget Filter Section (F03 & F07) -->
+      <section class="filter-section">
+        <div class="section-header">
+          <h2>Lọc món theo khoảng giá & ngân sách</h2>
+        </div>
+        <div id="price-filter-container"></div>
+      </section>
 
-        <!-- Search Dishes Section (F02) -->
-        <section class="filter-section">
-          <div class="section-header">
-            <h2>Tìm kiếm món ăn</h2>
+      <!-- Dish Type Filter Section -->
+      <section class="filter-section">
+        <div class="section-header">
+          <h2>Lọc món theo chay / mặn</h2>
+        </div>
+        <div id="dish-type-filter-container"></div>
+      </section>
+
+      <!-- Tag Filter Section -->
+      <section class="filter-section">
+        <div class="section-header">
+          <h2>Lọc món theo tag</h2>
+        </div>
+        <div id="dish-tag-filter-container"></div>
+      </section>
+
+      <div id="active-filter-summary" class="active-filter-summary" aria-live="polite"></div>
+
+      <!-- Dish List Section (F01) -->
+      <section class="dishes-section">
+        <div class="dishes-header">
+          <div class="dishes-title-wrap">
+            <span class="section-kicker">Khám phá món</span>
+            <h2>Danh sách món ăn</h2>
           </div>
-          <div id="search-container"></div>
-          <p class="search-hint">💡 Không phân biệt hoa/thường và không dấu — gõ <b>bún</b>, <b>BUN</b> hay <b>Bún Bò</b> đều cho kết quả tương tự.</p>
-        </section>
-
-        <!-- Mood Filter Section -->
-        <section class="filter-section mood-section">
-          <div class="section-header">
-            <div>
-              <span class="section-kicker">Ăn theo cảm xúc</span>
-              <h2>Bạn đang muốn ăn theo tâm trạng nào?</h2>
-            </div>
+          <div class="dishes-toolbar">
+            <span id="dishes-count" class="dishes-count">Đang tải...</span>
+            <label class="sort-wrap" for="sort-dishes">
+              <span>Sắp xếp</span>
+              <select id="sort-dishes" aria-label="Sắp xếp món ăn">
+                <option value="recommended">Gợi ý</option>
+                <option value="price-asc">Giá thấp đến cao</option>
+                <option value="price-desc">Giá cao đến thấp</option>
+                <option value="name-asc">Tên A-Z</option>
+              </select>
+            </label>
           </div>
-          <div id="mood-filter-container"></div>
-        </section>
+        </div>
+        <div id="dishes-container"></div>
+      </section>
 
-        <!-- Category Filter Section (F03) -->
-        <section class="filter-section">
-          <div class="section-header">
-            <h2>Lọc món theo danh mục</h2>
-          </div>
-          <div id="category-filter-container"></div>
-        </section>
+      <!-- Dish Detail Modal (F04) -->
+      <div id="dish-detail-container"></div>
+    </main>
 
-        <!-- Price Range & Budget Filter Section (F03 & F07) -->
-        <section class="filter-section">
-          <div class="section-header">
-            <h2>Lọc món theo khoảng giá & ngân sách</h2>
-          </div>
-          <div id="price-filter-container"></div>
-        </section>
+    <!-- Footer -->
+    <footer class="footer">
+      <p>© 2026 <strong>BungOiAnGi</strong> - Đồ án Trợ lý quyết định ăn gì (Client-only)</p>
+    </footer>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
 
-        <!-- Dish Type Filter Section -->
-        <section class="filter-section">
-          <div class="section-header">
-            <h2>Lọc món theo chay / mặn</h2>
-          </div>
-          <div id="dish-type-filter-container"></div>
-        </section>
-
-        <!-- Tag Filter Section -->
-        <section class="filter-section">
-          <div class="section-header">
-            <h2>Lọc món theo tag</h2>
-          </div>
-          <div id="dish-tag-filter-container"></div>
-        </section>
-
-        <div id="active-filter-summary" class="active-filter-summary" aria-live="polite"></div>
-
-        <!-- Dish List Section (F01) -->
-        <section class="dishes-section">
-          <div class="dishes-header">
-            <div class="dishes-title-wrap">
-              <span class="section-kicker">Khám phá món</span>
-              <h2>Danh sách món ăn</h2>
-            </div>
-            <div class="dishes-toolbar">
-              <span id="dishes-count" class="dishes-count">Đang tải...</span>
-              <label class="sort-wrap" for="sort-dishes">
-                <span>Sắp xếp</span>
-                <select id="sort-dishes" aria-label="Sắp xếp món ăn">
-                  <option value="recommended">Gợi ý</option>
-                  <option value="price-asc">Giá thấp đến cao</option>
-                  <option value="price-desc">Giá cao đến thấp</option>
-                  <option value="name-asc">Tên A-Z</option>
-                </select>
-              </label>
-            </div>
-          </div>
-          <div id="dishes-container"></div>
-        </section>
-
-        <!-- Dish Detail Modal (F04) -->
-        <div id="dish-detail-container"></div>
-      </main>
-
-      <!-- Footer -->
-      <footer class="footer">
-        <p>© 2026 <strong>BungOiAnGi</strong> - Đồ án Trợ lý quyết định ăn gì (Client-only)</p>
-      </footer>
-    </div>
-    <script type="module" src="/src/main.js"></script>
-  </body>
 </html>
