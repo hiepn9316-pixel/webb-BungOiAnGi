@@ -1,5 +1,9 @@
 {
+<<<<<<< HEAD
   "name": "website-ho-tro-dat-do-an-bungoiangi",
+=======
+  "name": "webb-bungoiangi",
+>>>>>>> 44cfd7eb84583ba1e4ca482065f1b7f7806cd204
   "version": "0.0.0",
   "private": true,
   "type": "module",
