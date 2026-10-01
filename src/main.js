@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 // ============================================================
 // 🍜 BungOiAnGi – Ứng Dụng Gợi Ý Món Ăn (Main App Shell)
 // ============================================================
@@ -153,18 +152,18 @@ function renderExplore() {
   ).join('');
 
   const tagOptions = [
-    { val: 'cay',        label: '🌶️ Cay' },
-    { val: 'no',         label: '🍚 No bụng' },
-    { val: 'tiet-kiem',  label: '💸 Rẻ' },
-    { val: 'ngot-ngao',  label: '🍮 Ngọt' },
-    { val: 'giai-khat',  label: '🧋 Mát' },
-    { val: 'thanh-mat',  label: '🥗 Thanh' },
-    { val: 'dam-da',     label: '🔥 Đậm đà' },
+    { val: 'cay', label: '🌶️ Cay' },
+    { val: 'no', label: '🍚 No bụng' },
+    { val: 'tiet-kiem', label: '💸 Rẻ' },
+    { val: 'ngot-ngao', label: '🍮 Ngọt' },
+    { val: 'giai-khat', label: '🧋 Mát' },
+    { val: 'thanh-mat', label: '🥗 Thanh' },
+    { val: 'dam-da', label: '🔥 Đậm đà' },
     { val: 'dinh-duong', label: '💪 Lành' },
-    { val: 'gion-rum',   label: '🍗 Giòn' },
-    { val: 'an-sang',    label: '☀️ Sáng' },
-    { val: 'phobien',    label: '⭐ Top' },
-    { val: 'an-vui',     label: '🎉 Vui' },
+    { val: 'gion-rum', label: '🍗 Giòn' },
+    { val: 'an-sang', label: '☀️ Sáng' },
+    { val: 'phobien', label: '⭐ Top' },
+    { val: 'an-vui', label: '🎉 Vui' },
   ];
   const tagBtns = tagOptions.map(t =>
     `<button class="tag-chip" data-tag="${t.val}">${t.label}</button>`
@@ -272,7 +271,7 @@ function showQuizResult(dish) {
     <div class="quiz-result-desc">${dish.desc}</div>
     <div class="dish-meta" style="justify-content:center;margin-bottom:.5rem">
       <span>⭐ ${dish.rating}</span> <span>🔥 ${dish.calo} kcal</span>
-      <span>💰 ${(dish.price/1000).toFixed(0)}K</span>
+      <span>💰 ${(dish.price / 1000).toFixed(0)}K</span>
     </div>`;
   result.classList.remove('hidden');
   playWin();
@@ -353,7 +352,7 @@ function renderDishCards(list) {
           <span class="dish-type-badge ${d.type === 'chay' ? 'chay' : 'man'}">
             ${d.type === 'chay' ? '🥗 Chay' : '🍖 Mặn'}
           </span>
-          <span class="dish-price-badge">${(d.price/1000).toFixed(0)}K</span>
+          <span class="dish-price-badge">${(d.price / 1000).toFixed(0)}K</span>
         </div>
         <div class="dish-info">
           <div class="dish-header-row">
@@ -400,7 +399,7 @@ function openModal(dish, onRoll) {
   document.getElementById('modal-name').textContent = dish.name;
   document.getElementById('modal-desc').textContent = dish.desc;
   document.getElementById('modal-facts').innerHTML = `
-    <div class="modal-fact"><span class="mf-value">${(dish.price/1000).toFixed(0)}K</span><span class="mf-key">Giá</span></div>
+    <div class="modal-fact"><span class="mf-value">${(dish.price / 1000).toFixed(0)}K</span><span class="mf-key">Giá</span></div>
     <div class="modal-fact"><span class="mf-value">${dish.calo}</span><span class="mf-key">Kcal</span></div>
     <div class="modal-fact"><span class="mf-value">${dish.time}</span><span class="mf-key">Chờ</span></div>
     <div class="modal-fact"><span class="mf-value">⭐ ${dish.rating}</span><span class="mf-key">Đánh giá</span></div>
@@ -691,65 +690,3 @@ function bindDishCards() {
 
 // Khởi chạy ứng dụng
 renderApp();
-=======
-import './style.css'
-import heroImg from './assets/hero.png'
-import javascriptLogo from './assets/javascript.svg'
-import viteLogo from './assets/vite.svg'
-import { setupCounter } from './counter.js'
-
-document.querySelector('#app').innerHTML = `
-<section id="center">
-  <div class="hero">
-    <img src="${heroImg}" class="base" width="170" height="179">
-    <img src="${javascriptLogo}" class="framework" alt="JavaScript logo"/>
-    <img src="${viteLogo}" class="vite" alt="Vite logo" />
-  </div>
-  <div>
-    <h1>Get started</h1>
-    <p>Edit <code>src/main.js</code> and save to test <code>HMR</code></p>
-  </div>
-  <button id="counter" type="button" class="counter"></button>
-</section>
-
-<div class="ticks"></div>
-
-<section id="next-steps">
-  <div id="docs">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#documentation-icon"></use></svg>
-    <h2>Documentation</h2>
-    <p>Your questions, answered</p>
-    <ul>
-      <li>
-        <a href="https://vite.dev/" target="_blank">
-          <img class="logo" src="${viteLogo}" alt="" />
-          Explore Vite
-        </a>
-      </li>
-      <li>
-        <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript" target="_blank">
-          <img class="button-icon" src="${javascriptLogo}" alt="">
-          Learn more
-        </a>
-      </li>
-    </ul>
-  </div>
-  <div id="social">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#social-icon"></use></svg>
-    <h2>Connect with us</h2>
-    <p>Join the Vite community</p>
-    <ul>
-      <li><a href="https://github.com/vitejs/vite" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#github-icon"></use></svg>GitHub</a></li>
-      <li><a href="https://chat.vite.dev/" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#discord-icon"></use></svg>Discord</a></li>
-      <li><a href="https://x.com/vite_js" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#x-icon"></use></svg>X.com</a></li>
-      <li><a href="https://bsky.app/profile/vite.dev" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#bluesky-icon"></use></svg>Bluesky</a></li>
-    </ul>
-  </div>
-</section>
-
-<div class="ticks"></div>
-<section id="spacer"></section>
-`
-
-setupCounter(document.querySelector('#counter'))
->>>>>>> 44cfd7eb84583ba1e4ca482065f1b7f7806cd204
