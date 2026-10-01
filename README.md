@@ -1,15 +1,24 @@
 # BungOiAnGi
 
-Ung dung Vite cho khach hang va quan tri vien, voi API JSON Server Auth.
+Ung dung Vite cho khach hang va quan tri vien. Dang nhap/dang ky dung Supabase Auth; cac API quan tri va dong bo mon an van dung JSON Server.
 
 ## Chay local
 
 1. Cai dependency: `npm install`
-2. Tao `.env` tu `.env.example`, sau do doi `ADMIN_PASSWORD` va `JWT_SECRET`.
+2. Tao `.env` tu `.env.example`, dien `VITE_SUPABASE_URL` va `VITE_SUPABASE_ANON_KEY`.
 3. Chay ca API va giao dien: `npm run dev:all`
 4. Mo dia chi Vite hien trong terminal. API mac dinh chay tai `http://127.0.0.1:3000`.
 
-Tai khoan admin duoc tao lan dau khi API khoi dong. Neu DB da ton tai, hay xoa DB local khi can seed lai admin; file `server/db.json` khong duoc commit.
+Nguoi dung dang ky/ dang nhap bang Supabase Auth. API JSON Server can `ADMIN_PASSWORD` va `JWT_SECRET` rieng neu muon dung cac chuc nang quan tri.
+
+## Cau hinh Supabase Auth
+
+1. Tao project Supabase va bat Email trong Authentication > Providers.
+2. Trong Authentication > URL Configuration, dat Site URL la domain Vercel production va them ca domain preview can dung vao Redirect URLs.
+3. Them `VITE_SUPABASE_URL` va public anon/publishable key vao `.env` khi chay local va vao Vercel > Settings > Environment Variables cho production/preview.
+4. Redeploy Vercel sau khi them bien moi. Neu xac minh email duoc bat, nguoi dung can bam lien ket trong email truoc khi dang nhap; co the doi URL xac nhan ve domain cua app.
+
+Khong dua service-role key len frontend hoac Vercel environment variables co tien to `VITE_`.
 
 ## Vai tro va API
 
@@ -20,18 +29,14 @@ Tai khoan admin duoc tao lan dau khi API khoi dong. Neu DB da ton tai, hay xoa D
 - Admin: `/660/api/admin/stats`, `/660/api/admin/dishes`, `/660/api/admin/users`.
 - Mon an cong khai: `GET /api/dishes`.
 
-Frontend co the tro toi API host rieng bang `VITE_API_URL`. Database local `server/db.json` bi ignore va khong duoc day len GitHub. De chinh sua qua Admin tren Vercel va giu thay doi, API phai chay rieng va `DATABASE_PATH` phai nam tren persistent storage.
+Dang nhap/dang ky tren Vercel khong can Render; Supabase Auth xu ly tai khoan va phien dang nhap. `VITE_API_URL` chi dung neu muon ket noi API JSON Server cho du lieu mon an dong bo va chuc nang quan tri. Database local `server/db.json` bi ignore va khong duoc day len GitHub.
 
-## Deploy Vercel va Render
+## Deploy Vercel
 
 1. Import repository vao Vercel. Vercel tu nhan Vite; file `vercel.json` khai bao lenh build va thu muc output.
-2. Tao Web Service tu Blueprint `render.yaml` tren Render. Persistent Disk duoc mount tai `/var/data`, nen database dung `/var/data/db.json` va van con sau khi service restart/deploy.
-3. Trong Render, dat `ADMIN_PASSWORD` thanh mat khau manh. Blueprint tao `JWT_SECRET` rieng va gioi han CORS den `https://webb-bung-oi-an-gi.vercel.app`. Neu dung Vercel domain/custom domain khac, cap nhat `CORS_ORIGINS` tren Render theo origin chinh xac (chi gom scheme va hostname).
-4. Cho Render deploy xong, dat Vercel project environment variable `VITE_API_URL` bang URL service Render (vi du `https://bungoiangi-api.onrender.com`), khong them dau `/` cuoi. Redeploy Vercel de build moi nhan bien nay.
-5. Neu muon chon file anh trong Admin, dat Vercel environment variables `VITE_CLOUDINARY_CLOUD_NAME` va `VITE_CLOUDINARY_UPLOAD_PRESET`. Neu chi dan URL anh, bo qua buoc nay.
-6. Dang nhap Admin, sua anh va bam “Lưu món”. Tai lai trang hoac vao lai Admin de xac nhan URL anh van con tren API.
-
-Render Persistent Disk can goi tra phi va chi gan voi mot service instance. Neu xoa disk/service, du lieu database tren disk co the mat; hay sao luu dinh ky.
+2. Cau hinh hai bien `VITE_SUPABASE_URL` va `VITE_SUPABASE_ANON_KEY` trong Vercel, sau do redeploy.
+3. De dung chuc nang Admin va dong bo mon an, tao Web Service rieng cho JSON Server va cau hinh `VITE_API_URL`; cac chuc nang nay khong duoc cung cap boi Supabase Auth.
+4. Neu muon chon file anh trong Admin, dat Vercel environment variables `VITE_CLOUDINARY_CLOUD_NAME` va `VITE_CLOUDINARY_UPLOAD_PRESET`.
 
 ## Kiem thu cac luong bao mat va lien ket
 

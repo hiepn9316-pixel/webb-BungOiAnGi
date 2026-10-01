@@ -1,4 +1,5 @@
-import { AUTH_SESSION_EXPIRED_EVENT, requestApi } from './apiClient.js';
+import { AUTH_SESSION_EXPIRED_EVENT } from './apiClient.js';
+import { isSupabaseConfigured, supabase } from './supabase.js';
 
 const AUTH_KEY = 'bung_auth_session';
 const DEFAULT_SESSION_DURATION = 1000 * 60 * 60;
@@ -34,10 +35,10 @@ function sanitizeUser(user) {
   if (!user) return null;
   return {
     id: user.id,
-    name: user.name,
+    name: user.user_metadata?.name || user.name || '',
     email: user.email,
-    role: user.role || 'customer',
-    createdAt: user.createdAt || new Date().toISOString(),
+    role: 'customer',
+    createdAt: user.created_at || user.createdAt || new Date().toISOString(),
   };
 }
 
@@ -101,8 +102,35 @@ export function setAuthSession(user, token) {
     user: sanitizeUser(user),
     token,
     expiresAt,
+    provider: 'supabase',
   }));
   scheduleSessionExpiry(expiresAt, token);
+}
+
+function syncSupabaseSession(session) {
+  if (!session?.access_token || !session.user) {
+    clearAuthSession();
+    return;
+  }
+  setAuthSession(session.user, session.access_token);
+}
+
+export async function initializeAuth() {
+  if (!isSupabaseConfigured || !supabase) {
+    clearAuthSession();
+    throw new Error('Chưa cấu hình Supabase. Hãy thêm VITE_SUPABASE_URL và VITE_SUPABASE_ANON_KEY.');
+  }
+
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw error;
+  syncSupabaseSession(data.session);
+  return Boolean(data.session);
+}
+
+if (supabase) {
+  supabase.auth.onAuthStateChange((_event, session) => {
+    syncSupabaseSession(session);
+  });
 }
 
 export function clearAuthSession() {
@@ -147,12 +175,16 @@ function getRequestFailureMessage(error, fallback = 'Thao tác không thành cô
   if (!message) return fallback;
 
   const lower = message.toLowerCase();
-  if (/already exists|email.*đã được đăng ký|email.*đã tồn tại/i.test(message)) {
+  if (/already registered|already exists|email.*đã được đăng ký|email.*đã tồn tại/i.test(message)) {
     return 'Email này đã được đăng ký.';
   }
 
-  if (/failed to fetch|network|load failed|fetch failed|connection|timeout|ecconnrefused|api.*unavailable|not connected/i.test(lower)) {
-    return 'Không thể kết nối đến máy chủ API. Hãy khởi động backend và thử lại.';
+  if (/invalid login credentials|invalid credentials/i.test(lower)) {
+    return 'Email hoặc mật khẩu không đúng.';
+  }
+
+  if (/failed to fetch|network|load failed|fetch failed|connection|timeout|api.*unavailable|not connected/i.test(lower)) {
+    return 'Không thể kết nối Supabase. Hãy kiểm tra cấu hình dự án và kết nối mạng.';
   }
 
   return message;
@@ -165,14 +197,28 @@ export async function apiRegister({ name, email, password }) {
   }
 
   try {
-    const result = await requestApi('/register', {
-      method: 'POST',
-      auth: false,
-      body: { name: String(name).trim(), email: normalizeEmail(email), password },
+    if (!isSupabaseConfigured || !supabase) {
+      throw new Error('Chưa cấu hình Supabase. Hãy thêm VITE_SUPABASE_URL và VITE_SUPABASE_ANON_KEY.');
+    }
+
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email: normalizeEmail(email),
+      password,
+      options: { data: { name: String(name).trim() } },
     });
-    const user = sanitizeUser(result.user);
-    setAuthSession(user, result.accessToken);
-    return { ok: true, token: result.accessToken, user, message: 'Đăng ký thành công! Bạn đã được đăng nhập tự động.' };
+    if (signUpError) throw signUpError;
+
+    const user = sanitizeUser(data.user);
+    if (data.session) {
+      syncSupabaseSession(data.session);
+      return { ok: true, token: data.session.access_token, user, message: 'Đăng ký thành công! Bạn đã được đăng nhập tự động.' };
+    }
+    return {
+      ok: true,
+      requiresEmailConfirmation: true,
+      user,
+      message: 'Đăng ký thành công. Hãy xác nhận email rồi đăng nhập.',
+    };
   } catch (requestError) {
     return { ok: false, message: getRequestFailureMessage(requestError, 'Đăng ký thất bại. Vui lòng thử lại.') };
   }
@@ -185,14 +231,19 @@ export async function apiLogin({ email, password }) {
   }
 
   try {
-    const result = await requestApi('/login', {
-      method: 'POST',
-      auth: false,
-      body: { email: normalizedEmail, password },
+    if (!isSupabaseConfigured || !supabase) {
+      throw new Error('Chưa cấu hình Supabase. Hãy thêm VITE_SUPABASE_URL và VITE_SUPABASE_ANON_KEY.');
+    }
+
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      email: normalizedEmail,
+      password,
     });
-    const user = sanitizeUser(result.user);
-    setAuthSession(user, result.accessToken);
-    return { ok: true, token: result.accessToken, user, message: 'Đăng nhập thành công.' };
+    if (signInError) throw signInError;
+
+    const user = sanitizeUser(data.user);
+    syncSupabaseSession(data.session);
+    return { ok: true, token: data.session.access_token, user, message: 'Đăng nhập thành công.' };
   } catch (requestError) {
     const message = getRequestFailureMessage(requestError, 'Email hoặc mật khẩu không đúng.');
     return { ok: false, message };
@@ -202,11 +253,28 @@ export async function apiLogin({ email, password }) {
 export async function apiForgotPassword() {
   return {
     ok: false,
-    message: 'Đặt lại mật khẩu cần dịch vụ xác minh email. Vui lòng liên hệ quản trị viên.',
+    message: 'Đặt lại mật khẩu cần luồng xác minh email. Vui lòng liên hệ quản trị viên.',
   };
 }
 
-export function logout() {
+export async function updateProfileName(name) {
+  if (!supabase) throw new Error('Chưa cấu hình Supabase.');
+  const normalizedName = String(name || '').trim();
+  if (normalizedName.length < 2) throw new Error('Tên người dùng phải có ít nhất 2 ký tự.');
+
+  const { data, error } = await supabase.auth.updateUser({ data: { name: normalizedName } });
+  if (error) throw error;
+  const user = sanitizeUser(data.user);
+  const session = getAuthSession();
+  if (session?.token) setAuthSession(user, session.token);
+  return user;
+}
+
+export async function logout() {
+  if (supabase) {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  }
   clearAuthSession();
   return { ok: true, message: 'Bạn đã đăng xuất.' };
 }

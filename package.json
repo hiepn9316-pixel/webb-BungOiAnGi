@@ -20,5 +20,8 @@
   },
   "overrides": {
     "jsonwebtoken": "^9.0.2"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.117.2"
   }
 }
