@@ -11,6 +11,14 @@ import { QUIZ_QUESTIONS, resolveQuizMood } from './features/quiz/quizData.js';
 import { initAirdropManager } from './features/airdrop/airdropManager.js';
 import { playClick, playSelect, playBup, playWin } from './utils/uiAudio.js';
 import { burst, megaBurst } from './utils/confetti.js';
+import { formatCurrency } from './utils/formatCurrency.js';
+import {
+  findNearbyPlaces,
+  getCurrentPosition,
+  googleMapsDirectionsUrl,
+  renderNearbyMap,
+  serviceSearchUrl
+} from './features/nearby/nearbyPlaces.js';
 
 // ============================================================
 // STATE QUẢN LÝ ỨNG DỤNG
@@ -25,6 +33,7 @@ const state = {
   favorites: JSON.parse(localStorage.getItem('bung_favs') || '[]'),
   quizAnswers: {},
   quizStep: 0,
+  quizAdvancing: false,
 };
 
 // ============================================================
@@ -246,6 +255,7 @@ function renderQuiz() {
       ${steps}
       <div class="quiz-result hidden" id="quiz-result">
         <div class="quiz-result-dish" id="quiz-result-dish"></div>
+        <div id="quiz-nearby-panel"></div>
         <div style="display:flex;gap:.75rem;margin-top:1rem">
           <button class="btn-primary" id="quiz-restart-btn">🔄 Thử lại</button>
           <button class="btn-secondary" id="quiz-save-btn">❤️ Lưu vào Gu</button>
@@ -271,8 +281,9 @@ function showQuizResult(dish) {
     <div class="quiz-result-desc">${dish.desc}</div>
     <div class="dish-meta" style="justify-content:center;margin-bottom:.5rem">
       <span>⭐ ${dish.rating}</span> <span>🔥 ${dish.calo} kcal</span>
-      <span>💰 ${(dish.price / 1000).toFixed(0)}K</span>
+      <span>💰 ${formatCurrency(dish.price)}</span>
     </div>`;
+  renderNearbyPanel(dish, document.getElementById('quiz-nearby-panel'));
   result.classList.remove('hidden');
   playWin();
   burst(window.innerWidth / 2, window.innerHeight / 2, 60);
@@ -288,12 +299,16 @@ function showQuizResult(dish) {
 function resetQuiz() {
   state.quizAnswers = {};
   state.quizStep = 0;
+  state.quizAdvancing = false;
   document.getElementById('quiz-result')?.classList.add('hidden');
   QUIZ_QUESTIONS.forEach((_, i) => {
     const step = document.getElementById(`quiz-step-${i}`);
     if (step) {
       step.classList.toggle('hidden', i !== 0);
-      step.querySelectorAll('.quiz-opt').forEach(b => b.classList.remove('selected'));
+      step.querySelectorAll('.quiz-opt').forEach(b => {
+        b.disabled = false;
+        b.classList.remove('selected');
+      });
     }
   });
   updateQuizDots();
@@ -352,7 +367,7 @@ function renderDishCards(list) {
           <span class="dish-type-badge ${d.type === 'chay' ? 'chay' : 'man'}">
             ${d.type === 'chay' ? '🥗 Chay' : '🍖 Mặn'}
           </span>
-          <span class="dish-price-badge">${(d.price / 1000).toFixed(0)}K</span>
+          <span class="dish-price-badge">${formatCurrency(d.price)}</span>
         </div>
         <div class="dish-info">
           <div class="dish-header-row">
@@ -383,6 +398,7 @@ function renderModal() {
           <div class="modal-desc" id="modal-desc"></div>
           <div class="modal-facts" id="modal-facts"></div>
           <div class="modal-reason" id="modal-reason"></div>
+          <div id="modal-nearby-panel"></div>
           <div class="modal-actions">
             <button class="btn-secondary" id="modal-change-btn">🔄 Đổi món khác</button>
             <button class="btn-primary" id="modal-save-btn">❤️ Lưu vào Gu</button>
@@ -399,12 +415,13 @@ function openModal(dish, onRoll) {
   document.getElementById('modal-name').textContent = dish.name;
   document.getElementById('modal-desc').textContent = dish.desc;
   document.getElementById('modal-facts').innerHTML = `
-    <div class="modal-fact"><span class="mf-value">${(dish.price / 1000).toFixed(0)}K</span><span class="mf-key">Giá</span></div>
+    <div class="modal-fact"><span class="mf-value">${formatCurrency(dish.price)}</span><span class="mf-key">Giá</span></div>
     <div class="modal-fact"><span class="mf-value">${dish.calo}</span><span class="mf-key">Kcal</span></div>
     <div class="modal-fact"><span class="mf-value">${dish.time}</span><span class="mf-key">Chờ</span></div>
     <div class="modal-fact"><span class="mf-value">⭐ ${dish.rating}</span><span class="mf-key">Đánh giá</span></div>
   `;
   document.getElementById('modal-reason').textContent = `✅ Lý do nên ăn: ${dish.desc.split('–')[0].trim()}`;
+  renderNearbyPanel(dish);
 
   const saveBtn = document.getElementById('modal-save-btn');
   const saved = state.favorites.includes(dish.id);
@@ -428,6 +445,136 @@ function openModal(dish, onRoll) {
 
 function closeModal() {
   document.getElementById('dish-modal')?.classList.remove('open');
+}
+
+let nearbyPanelSequence = 0;
+
+function renderNearbyPanel(dish, panel = document.getElementById('modal-nearby-panel'), options = {}) {
+  if (!panel) return;
+  const { showMap = true } = options;
+  const panelId = `nearby-panel-${++nearbyPanelSequence}`;
+  const ids = {
+    radius: `${panelId}-radius`,
+    locate: `${panelId}-locate`,
+    status: `${panelId}-status`,
+    help: `${panelId}-help`,
+    map: `${panelId}-map`,
+    results: `${panelId}-results`
+  };
+
+  panel.innerHTML = `
+    <section class="nearby-panel" aria-label="Tìm quán ăn gần đây">
+      <div class="nearby-title-row">
+        <div>
+          <h3>Quán gần bạn</h3>
+          <p class="nearby-caption">Tìm địa điểm thật quanh vị trí hiện tại</p>
+        </div>
+        <label class="nearby-radius-label" for="${ids.radius}">Bán kính
+          <select id="${ids.radius}" aria-label="Bán kính tìm quán">
+            <option value="1">1 km</option>
+            <option value="3">3 km</option>
+            <option value="5" selected>5 km</option>
+            <option value="10">10 km</option>
+          </select>
+        </label>
+      </div>
+      <button type="button" class="nearby-locate-btn" id="${ids.locate}">
+        <span aria-hidden="true">◎</span> Tìm quán gần tôi
+      </button>
+      <div class="nearby-location-row">
+        <p class="nearby-status" id="${ids.status}" role="status" aria-live="polite">
+          Vị trí chưa được cấp quyền. Cho phép GPS để xem quán gần nhất.
+        </p>
+        <button type="button" class="nearby-help-btn" id="${panelId}-help-button" aria-expanded="false" aria-controls="${ids.help}">Cách bật</button>
+      </div>
+      <p class="nearby-help-text" id="${ids.help}" hidden>Trong Chrome/Edge, mở biểu tượng điều khiển trang cạnh thanh địa chỉ → Quyền vị trí → Cho phép; trên điện thoại, bật Location/GPS và cấp quyền cho trình duyệt. Trang triển khai cần HTTPS.</p>
+      ${showMap ? `<div class="nearby-map" id="${ids.map}" aria-label="Bản đồ quán ăn gần đây">
+        <div class="nearby-map-placeholder">Bản đồ sẽ hiện sau khi xác định vị trí</div>
+      </div>` : ''}
+      <div class="nearby-results" id="${ids.results}"></div>
+      <div class="service-search">
+        <div class="service-buttons" aria-label="Mở dịch vụ tìm món">
+          <button type="button" class="service-button service-button--maps" data-service="maps"><span aria-hidden="true">📍</span> Google Maps</button>
+          <button type="button" class="service-button service-button--grab" data-service="grab"><span class="service-wordmark">GrabFood</span></button>
+          <button type="button" class="service-button service-button--shopee" data-service="shopee"><span class="service-wordmark">ShopeeFood</span></button>
+        </div>
+      </div>
+    </section>`;
+
+  const status = panel.querySelector(`#${ids.status}`);
+  const mapElement = panel.querySelector(`#${ids.map}`);
+  const resultsElement = panel.querySelector(`#${ids.results}`);
+  let currentLocation = null;
+  let selectedPlace = null;
+
+  panel.querySelector(`#${panelId}-help-button`)?.addEventListener('click', event => {
+    const help = panel.querySelector(`#${ids.help}`);
+    help.hidden = !help.hidden;
+    event.currentTarget.setAttribute('aria-expanded', String(!help.hidden));
+  });
+
+  panel.querySelector(`#${ids.locate}`)?.addEventListener('click', async () => {
+    const radiusKm = Number(panel.querySelector(`#${ids.radius}`)?.value || 5);
+    status.textContent = 'Đang xin quyền GPS…';
+    resultsElement.innerHTML = '';
+
+    try {
+      currentLocation = await getCurrentPosition();
+      status.textContent = `Đã xác định vị trí. Đang tìm quán trong bán kính ${radiusKm} km…`;
+      if (mapElement) await renderNearbyMap(mapElement, currentLocation);
+
+      const places = await findNearbyPlaces(currentLocation, radiusKm);
+      if (!panel.isConnected) return;
+      if (places.length === 0) {
+        status.textContent = `Chưa tìm thấy quán có dữ liệu trong bán kính ${radiusKm} km. Thử tăng bán kính.`;
+        return;
+      }
+
+      status.textContent = `Tìm thấy ${places.length} quán. Gần nhất cách bạn ${formatDistance(places[0].distanceKm)}.`;
+      resultsElement.innerHTML = places.slice(0, 8).map((place, index) => `
+        <article class="nearby-place ${index === 0 ? 'is-nearest' : ''}">
+          <button type="button" class="nearby-place-select" data-place-index="${index}">
+            <span class="nearby-place-name">${escapeHTML(place.name)}</span>
+            <span class="nearby-place-distance">${formatDistance(place.distanceKm)}</span>
+            <span class="nearby-place-address">${escapeHTML(place.address)}</span>
+          </button>
+          <a class="nearby-directions" href="${googleMapsDirectionsUrl(currentLocation, place)}" target="_blank" rel="noopener noreferrer" aria-label="Chỉ đường đến ${escapeHTML(place.name)}">Chỉ đường ↗</a>
+        </article>`).join('');
+
+      resultsElement.querySelectorAll('[data-place-index]').forEach(button => {
+        button.addEventListener('click', async () => {
+          selectedPlace = places[Number(button.dataset.placeIndex)];
+          status.textContent = mapElement
+            ? `Đang mở bản đồ đến ${selectedPlace.name}…`
+            : `Đã chọn ${selectedPlace.name}. Nhấn “Chỉ đường” để mở Google Maps.`;
+          if (mapElement) await renderNearbyMap(mapElement, currentLocation, selectedPlace);
+          if (mapElement) status.textContent = `${selectedPlace.name} · ${formatDistance(selectedPlace.distanceKm)} từ vị trí của bạn.`;
+          resultsElement.querySelectorAll('.nearby-place').forEach(row => row.classList.remove('is-selected'));
+          button.closest('.nearby-place')?.classList.add('is-selected');
+        });
+      });
+    } catch (error) {
+      if (panel.isConnected) status.textContent = error.message || 'Không thể lấy vị trí. Hãy kiểm tra quyền GPS của trình duyệt.';
+    }
+  });
+
+  panel.querySelectorAll('[data-service]').forEach(button => {
+    button.addEventListener('click', () => {
+      const query = dish.name;
+      window.open(serviceSearchUrl(button.dataset.service, query, currentLocation), '_blank', 'noopener,noreferrer');
+    });
+  });
+
+}
+
+function escapeHTML(value) {
+  return String(value).replace(/[&<>"']/g, character => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[character]);
+}
+
+function formatDistance(distanceKm) {
+  return distanceKm < 1 ? `${Math.round(distanceKm * 1000)} m` : `${distanceKm.toFixed(1)} km`;
 }
 
 function toggleFav(id) {
@@ -494,7 +641,10 @@ function navigateTo(page) {
         dishes,
         () => state.favorites,
         (id) => { toggleFav(id); updateFavBadge(); },
-        (dish, onRoll) => openModal(dish, onRoll)
+        (dish, onRoll) => openModal(dish, onRoll),
+        (dish, host) => renderNearbyPanel(dish, host, {
+          showMap: false
+        })
       );
     }
   }
@@ -635,11 +785,16 @@ function bindAll() {
   // Quiz Options
   document.querySelectorAll('.quiz-opt').forEach(btn => {
     btn.addEventListener('click', () => {
+      if (state.quizAdvancing) return;
+      state.quizAdvancing = true;
       playSelect();
       const key = btn.dataset.key;
       const val = btn.dataset.val;
       const step = btn.closest('.quiz-step');
-      step.querySelectorAll('.quiz-opt').forEach(b => b.classList.remove('selected'));
+      step.querySelectorAll('.quiz-opt').forEach(b => {
+        b.disabled = true;
+        b.classList.remove('selected');
+      });
       btn.classList.add('selected');
       state.quizAnswers[key] = val;
 
@@ -656,6 +811,7 @@ function bindAll() {
           const dish = resolveQuizResult();
           showQuizResult(dish);
         }
+        state.quizAdvancing = false;
       }, 400);
     });
   });
