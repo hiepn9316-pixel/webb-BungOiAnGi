@@ -59,6 +59,7 @@ test('roles protect admin APIs and customer data is scoped to its owner', { time
       ADMIN_EMAIL: 'admin@test.local',
       ADMIN_PASSWORD: 'SecureAdmin123!',
       JWT_SECRET: 'test-secret-that-is-long-enough-for-jwt-validation',
+      CORS_ORIGINS: 'https://webb-bung-oi-an-gi.vercel.app',
       NODE_ENV: 'test',
     },
     stdio: 'ignore',
@@ -74,8 +75,40 @@ test('roles protect admin APIs and customer data is scoped to its owner', { time
 
   await waitForServer(baseUrl, child);
 
+  const preflight = await fetch(`${baseUrl}/660/api/admin/dishes`, {
+    method: 'OPTIONS',
+    headers: {
+      Origin: 'https://webb-bung-oi-an-gi.vercel.app',
+      'Access-Control-Request-Method': 'PATCH',
+      'Access-Control-Request-Headers': 'authorization,content-type',
+    },
+  });
+  assert.equal(preflight.status, 204);
+  assert.equal(preflight.headers.get('access-control-allow-origin'), 'https://webb-bung-oi-an-gi.vercel.app');
+  assert.match(preflight.headers.get('access-control-allow-headers'), /authorization/i);
+
+  const allowedOriginResponse = await fetch(`${baseUrl}/health`, {
+    headers: { Origin: 'https://webb-bung-oi-an-gi.vercel.app' },
+  });
+  assert.equal(allowedOriginResponse.headers.get('access-control-allow-origin'), 'https://webb-bung-oi-an-gi.vercel.app');
+
+  const rejectedOrigin = await fetch(`${baseUrl}/660/api/admin/dishes`, {
+    method: 'OPTIONS',
+    headers: {
+      Origin: 'https://untrusted.example',
+      'Access-Control-Request-Method': 'PATCH',
+    },
+  });
+  assert.equal(rejectedOrigin.status, 403);
+  assert.equal(rejectedOrigin.headers.get('access-control-allow-origin'), null);
+
   const anonymousStats = await jsonRequest(`${baseUrl}/660/api/admin/stats`);
   assert.equal(anonymousStats.response.status, 401);
+
+  for (const resource of ['stats', 'dishes', 'users']) {
+    const response = await jsonRequest(`${baseUrl}/660/api/admin/${resource}`);
+    assert.equal(response.response.status, 401, `Anonymous GET /admin/${resource} must be rejected.`);
+  }
 
   const adminLogin = await jsonRequest(`${baseUrl}/login`, {
     method: 'POST',
@@ -108,14 +141,43 @@ test('roles protect admin APIs and customer data is scoped to its owner', { time
 
   const registration = await jsonRequest(`${baseUrl}/register`, {
     method: 'POST',
-    body: { name: 'Khách kiểm thử', email: 'customer@test.local', password: 'Customer123!', role: 'admin' },
+    body: { name: 'Khách kiểm thử', email: 'customer@test.local', password: ' Customer123! ', role: 'admin' },
   });
   assert.equal(registration.response.status, 201);
   assert.equal(registration.data.user.role, 'customer');
   const customerToken = registration.data.accessToken;
 
+  const customerLogin = await jsonRequest(`${baseUrl}/login`, {
+    method: 'POST',
+    body: { email: 'customer@test.local', password: ' Customer123! ' },
+  });
+  assert.equal(customerLogin.response.status, 200);
+  assert.ok(customerLogin.data.accessToken);
+
   const forbiddenStats = await jsonRequest(`${baseUrl}/660/api/admin/stats`, { token: customerToken });
   assert.equal(forbiddenStats.response.status, 403);
+
+  for (const resource of ['stats', 'dishes', 'users']) {
+    const response = await jsonRequest(`${baseUrl}/660/api/admin/${resource}`, { token: customerToken });
+    assert.equal(response.response.status, 403, `Customer GET /admin/${resource} must be forbidden.`);
+  }
+
+  const forbiddenAdminMutations = [
+    { path: '/660/api/admin/dishes', method: 'POST', body: { name: 'Không được tạo', price: 1 } },
+    { path: '/660/api/admin/dishes/1', method: 'PATCH', body: { name: 'Không được sửa' } },
+    { path: '/660/api/admin/dishes/1', method: 'DELETE' },
+    { path: '/660/api/admin/users', method: 'POST', body: { name: 'Không được tạo', email: 'forbidden@test.local', password: 'Customer123!' } },
+    { path: '/660/api/admin/users/1', method: 'PATCH', body: { role: 'admin' } },
+    { path: '/660/api/admin/users/1', method: 'DELETE' },
+  ];
+  for (const request of forbiddenAdminMutations) {
+    const response = await jsonRequest(`${baseUrl}${request.path}`, {
+      token: customerToken,
+      method: request.method,
+      body: request.body,
+    });
+    assert.equal(response.response.status, 403, `Customer ${request.method} ${request.path} must be forbidden.`);
+  }
 
   const syncedFavorites = await jsonRequest(`${baseUrl}/660/api/customer/favorites`, {
     token: customerToken,

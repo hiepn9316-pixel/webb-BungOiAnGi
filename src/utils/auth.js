@@ -1,6 +1,10 @@
-import { requestApi } from './apiClient.js';
+import { AUTH_SESSION_EXPIRED_EVENT, requestApi } from './apiClient.js';
 
 const AUTH_KEY = 'bung_auth_session';
+const DEFAULT_SESSION_DURATION = 1000 * 60 * 60;
+let sessionExpiryTimer = null;
+
+export { AUTH_SESSION_EXPIRED_EVENT };
 
 function getStorage() {
   if (typeof window !== 'undefined' && window.localStorage) return window.localStorage;
@@ -37,6 +41,46 @@ function sanitizeUser(user) {
   };
 }
 
+function tokenExpiry(token) {
+  const payload = String(token || '').split('.')[1];
+  if (!payload) return null;
+
+  try {
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const decoded = atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, '='));
+    const expiry = JSON.parse(decoded).exp;
+    return Number.isFinite(expiry) ? expiry * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+function scheduleSessionExpiry(expiresAt, token) {
+  if (sessionExpiryTimer !== null) clearTimeout(sessionExpiryTimer);
+  const delay = expiresAt - Date.now();
+
+  if (delay <= 0) {
+    clearAuthSession();
+    globalThis.window?.dispatchEvent(new Event(AUTH_SESSION_EXPIRED_EVENT));
+    return;
+  }
+
+  sessionExpiryTimer = setTimeout(() => {
+    const storage = getStorage();
+    const session = safeJsonParse(storage.getItem(AUTH_KEY), null);
+    if (!session || session.token !== token) return;
+
+    if (session.expiresAt > Date.now()) {
+      scheduleSessionExpiry(session.expiresAt, token);
+      return;
+    }
+
+    clearAuthSession();
+    globalThis.window?.dispatchEvent(new Event(AUTH_SESSION_EXPIRED_EVENT));
+  }, delay);
+  sessionExpiryTimer.unref?.();
+}
+
 export function getAuthSession() {
   const storage = getStorage();
   const session = safeJsonParse(storage.getItem(AUTH_KEY), null);
@@ -51,15 +95,19 @@ export function getAuthSession() {
 }
 
 export function setAuthSession(user, token) {
+  const expiresAt = tokenExpiry(token) || Date.now() + DEFAULT_SESSION_DURATION;
   const storage = getStorage();
   storage.setItem(AUTH_KEY, JSON.stringify({
     user: sanitizeUser(user),
     token,
-    expiresAt: Date.now() + 1000 * 60 * 60,
+    expiresAt,
   }));
+  scheduleSessionExpiry(expiresAt, token);
 }
 
 export function clearAuthSession() {
+  if (sessionExpiryTimer !== null) clearTimeout(sessionExpiryTimer);
+  sessionExpiryTimer = null;
   const storage = getStorage();
   storage.removeItem(AUTH_KEY);
 }

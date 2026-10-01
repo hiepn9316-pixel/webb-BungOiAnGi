@@ -1,10 +1,23 @@
-export function resolveApiBaseUrl() {
-  const configured = String(import.meta.env?.VITE_API_URL ?? '').trim();
-  return configured ? configured.replace(/\/$/, '') : 'http://127.0.0.1:3000';
+export function resolveApiBaseUrl(configuredValue = import.meta.env?.VITE_API_URL, browserHostname = globalThis.window?.location?.hostname) {
+  const configured = String(configuredValue ?? '').trim().replace(/\/$/, '');
+  const isLoopback = hostname => ['localhost', '127.0.0.1', '::1'].includes(String(hostname || '').toLowerCase());
+
+  if (configured) {
+    let apiHostname = '';
+    try {
+      apiHostname = new URL(configured).hostname;
+    } catch {
+      return configured;
+    }
+    return browserHostname && !isLoopback(browserHostname) && isLoopback(apiHostname) ? '' : configured;
+  }
+
+  return browserHostname && !isLoopback(browserHostname) ? '' : 'http://127.0.0.1:3000';
 }
 
 const API_BASE_URL = resolveApiBaseUrl();
 const AUTH_STORAGE_KEY = 'bung_auth_session';
+export const AUTH_SESSION_EXPIRED_EVENT = 'bung:auth-session-expired';
 
 function readSession() {
   try {
@@ -45,6 +58,14 @@ export async function requestApi(path, { method = 'GET', body, auth = true, sign
   }
 
   if (!response.ok) {
+    if (response.status === 401 && auth) {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem(AUTH_STORAGE_KEY);
+      } else if (globalThis.__bungoiangi_store__) {
+        delete globalThis.__bungoiangi_store__[AUTH_STORAGE_KEY];
+      }
+      globalThis.window?.dispatchEvent(new Event(AUTH_SESSION_EXPIRED_EVENT));
+    }
     const message = typeof result === 'string' ? result : result?.message;
     throw new Error(message || `Yêu cầu thất bại (${response.status}).`);
   }

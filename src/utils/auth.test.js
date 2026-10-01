@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolveApiBaseUrl } from './apiClient.js';
-import { registerUser, loginUser, forgotPassword } from './auth.js';
-import { clearAuthSession, getAuthSession } from './auth.js';
+import { registerUser, loginUser, forgotPassword, setAuthSession } from './auth.js';
+import { AUTH_SESSION_EXPIRED_EVENT, clearAuthSession, getAuthSession, isAuthenticated } from './auth.js';
+import { requestApi } from './apiClient.js';
 
 function createJsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -61,8 +62,28 @@ test('register and login use server-issued JWT and customer role', async t => {
   assert.match(duplicate.message, /đã được đăng ký/i);
 });
 
+test('login preserves intentional whitespace in passwords', async t => {
+  const restoreFetch = installAuthApiMock();
+  t.after(() => {
+    clearAuthSession();
+    restoreFetch();
+  });
+
+  const password = ' Customer123! ';
+  const registered = await registerUser({ name: 'Nguyễn A', email: 'spaces@example.com', password });
+  assert.equal(registered.ok, true);
+
+  const loggedIn = await loginUser({ email: 'spaces@example.com', password });
+  assert.equal(loggedIn.ok, true);
+});
+
 test('default API base URL points to the local JSON Server backend', () => {
   assert.equal(resolveApiBaseUrl(), 'http://127.0.0.1:3000');
+});
+
+test('remote devices use the same-origin proxy instead of a loopback API URL', () => {
+  assert.equal(resolveApiBaseUrl('http://127.0.0.1:3000', '192.168.1.25'), '');
+  assert.equal(resolveApiBaseUrl('http://127.0.0.1:3000', 'localhost'), 'http://127.0.0.1:3000');
 });
 
 test('password reset stays disabled without email verification', async () => {
@@ -84,4 +105,48 @@ test('login surfaces backend connection errors clearly', async () => {
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test('expired server token automatically clears the session and emits a logout event', async t => {
+  const originalWindow = globalThis.window;
+  const eventTarget = new EventTarget();
+  globalThis.window = eventTarget;
+  clearAuthSession();
+  t.after(() => {
+    clearAuthSession();
+    if (originalWindow === undefined) delete globalThis.window;
+    else globalThis.window = originalWindow;
+  });
+
+  let expiryEvent;
+  eventTarget.addEventListener(AUTH_SESSION_EXPIRED_EVENT, event => { expiryEvent = event; });
+  const expiry = Math.ceil(Date.now() / 1000) + 1;
+  const payload = btoa(JSON.stringify({ exp: expiry })).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  setAuthSession({ id: 1, name: 'Khách', email: 'a@example.com' }, `header.${payload}.signature`);
+
+  assert.equal(isAuthenticated(), true);
+  await new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error('Session expiry event was not emitted.')), 3000);
+    eventTarget.addEventListener(AUTH_SESSION_EXPIRED_EVENT, () => {
+      clearTimeout(timeout);
+      resolve();
+    }, { once: true });
+  });
+
+  assert.equal(getAuthSession(), null);
+  assert.equal(expiryEvent.type, AUTH_SESSION_EXPIRED_EVENT);
+});
+
+test('a 401 from an authenticated API clears the current session', async t => {
+  const originalFetch = globalThis.fetch;
+  clearAuthSession();
+  setAuthSession({ id: 1, name: 'Khách', email: 'a@example.com' }, 'server.jwt.customer');
+  globalThis.fetch = async () => createJsonResponse({ message: 'Token hết hạn.' }, 401);
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+    clearAuthSession();
+  });
+
+  await assert.rejects(requestApi('/api/admin/stats'), /Token hết hạn/);
+  assert.equal(getAuthSession(), null);
 });

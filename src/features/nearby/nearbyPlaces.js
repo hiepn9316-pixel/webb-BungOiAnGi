@@ -1,5 +1,5 @@
 const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+const GOOGLE_MAPS_API_KEY = import.meta.env?.VITE_GOOGLE_MAPS_API_KEY;
 let googleMapsPromise;
 
 export function getCurrentPosition() {

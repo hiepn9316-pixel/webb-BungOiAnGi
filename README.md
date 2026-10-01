@@ -20,7 +20,23 @@ Tai khoan admin duoc tao lan dau khi API khoi dong. Neu DB da ton tai, hay xoa D
 - Admin: `/660/api/admin/stats`, `/660/api/admin/dishes`, `/660/api/admin/users`.
 - Mon an cong khai: `GET /api/dishes`.
 
-Frontend co the tro toi API host rieng bang `VITE_API_URL`. De dong bo du lieu giua thiet bi, deploy API va DB tren host co persistent storage; JSON Server local chi luu vao file may dang chay.
+Frontend co the tro toi API host rieng bang `VITE_API_URL`. Database local `server/db.json` bi ignore va khong duoc day len GitHub. De chinh sua qua Admin tren Vercel va giu thay doi, API phai chay rieng va `DATABASE_PATH` phai nam tren persistent storage.
+
+## Deploy Vercel va Render
+
+1. Import repository vao Vercel. Vercel tu nhan Vite; file `vercel.json` khai bao lenh build va thu muc output.
+2. Tao Web Service tu Blueprint `render.yaml` tren Render. Persistent Disk duoc mount tai `/var/data`, nen database dung `/var/data/db.json` va van con sau khi service restart/deploy.
+3. Trong Render, dat `ADMIN_PASSWORD` thanh mat khau manh. Blueprint tao `JWT_SECRET` rieng va gioi han CORS den `https://webb-bung-oi-an-gi.vercel.app`. Neu dung Vercel domain/custom domain khac, cap nhat `CORS_ORIGINS` tren Render theo origin chinh xac (chi gom scheme va hostname).
+4. Cho Render deploy xong, dat Vercel project environment variable `VITE_API_URL` bang URL service Render (vi du `https://bungoiangi-api.onrender.com`), khong co dau `/` cuoi. Redeploy Vercel de build moi nhan bien nay.
+5. Neu muon chon file anh trong Admin, dat Vercel environment variables `VITE_CLOUDINARY_CLOUD_NAME` va `VITE_CLOUDINARY_UPLOAD_PRESET`. Neu chi dan URL anh, bo qua buoc nay.
+6. Dang nhap Admin, sua anh va bam “Lưu món”. Tai lai trang hoac vao lai Admin de xac nhan URL anh van con tren API.
+
+Render Persistent Disk can goi tra phi va chi gan voi mot service instance. Neu xoa disk/service, du lieu database tren disk co the mat; hay sao luu dinh ky.
+
+## Kiem thu cac luong bao mat va lien ket
+
+- `npm test` kiem tra API Admin voi request an danh/tai khoan customer, tu choi quyen GPS, URL dich vu tren iOS/Android/PC va dang xuat khi JWT het han hoac API tra ve 401.
+- GrabFood va ShopeeFood duoc mo bang HTTPS universal-link fallback. Viec he dieu hanh chuyen tiep sang app native phu thuoc app da cai va cau hinh universal/app links cua nha cung cap; can xac nhan them tren iPhone va Android that. Tren PC, link mo trang web dich vu.
 
 ## Cloudinary
 
