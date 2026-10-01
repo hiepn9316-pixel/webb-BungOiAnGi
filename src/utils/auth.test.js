@@ -65,6 +65,11 @@ test('default API base URL points to the local JSON Server backend', () => {
   assert.equal(resolveApiBaseUrl(), 'http://127.0.0.1:3000');
 });
 
+test('remote devices use the same-origin proxy instead of a loopback API URL', () => {
+  assert.equal(resolveApiBaseUrl('http://127.0.0.1:3000', '192.168.1.25'), '');
+  assert.equal(resolveApiBaseUrl('http://127.0.0.1:3000', 'localhost'), 'http://127.0.0.1:3000');
+});
+
 test('password reset stays disabled without email verification', async () => {
   const result = await forgotPassword({ email: 'a@example.com', newPassword: '654321' });
   assert.equal(result.ok, false);

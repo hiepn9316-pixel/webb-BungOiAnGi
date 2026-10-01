@@ -1,6 +1,18 @@
-export function resolveApiBaseUrl() {
-  const configured = String(import.meta.env?.VITE_API_URL ?? '').trim();
-  return configured ? configured.replace(/\/$/, '') : 'http://127.0.0.1:3000';
+export function resolveApiBaseUrl(configuredValue = import.meta.env?.VITE_API_URL, browserHostname = globalThis.window?.location?.hostname) {
+  const configured = String(configuredValue ?? '').trim().replace(/\/$/, '');
+  const isLoopback = hostname => ['localhost', '127.0.0.1', '::1'].includes(String(hostname || '').toLowerCase());
+
+  if (configured) {
+    let apiHostname = '';
+    try {
+      apiHostname = new URL(configured).hostname;
+    } catch {
+      return configured;
+    }
+    return browserHostname && !isLoopback(browserHostname) && isLoopback(apiHostname) ? '' : configured;
+  }
+
+  return browserHostname && !isLoopback(browserHostname) ? '' : 'http://127.0.0.1:3000';
 }
 
 const API_BASE_URL = resolveApiBaseUrl();
