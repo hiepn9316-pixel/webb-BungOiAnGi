@@ -1361,8 +1361,8 @@ function bindAll() {
     const payload = {
       name: String(formData.get('name') || '').trim(),
       email: String(formData.get('email') || '').trim(),
-      password: String(formData.get('password') || '').trim(),
-      newPassword: String(formData.get('newPassword') || '').trim(),
+      password: String(formData.get('password') || ''),
+      newPassword: String(formData.get('newPassword') || ''),
     };
 
     let result;

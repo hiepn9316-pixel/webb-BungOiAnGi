@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: bungoiangi-api
+    runtime: node
+    plan: starter
+    buildCommand: npm ci
+    startCommand: npm run api
+    healthCheckPath: /health
+    disk:
+      name: bungoiangi-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_PATH
+        value: /var/data/db.json
+      - key: ADMIN_EMAIL
+        value: admin@bungoiangi.com
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: https://hiepn9316-pixel.github.io

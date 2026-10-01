@@ -62,6 +62,21 @@ test('register and login use server-issued JWT and customer role', async t => {
   assert.match(duplicate.message, /đã được đăng ký/i);
 });
 
+test('login preserves intentional whitespace in passwords', async t => {
+  const restoreFetch = installAuthApiMock();
+  t.after(() => {
+    clearAuthSession();
+    restoreFetch();
+  });
+
+  const password = ' Customer123! ';
+  const registered = await registerUser({ name: 'Nguyễn A', email: 'spaces@example.com', password });
+  assert.equal(registered.ok, true);
+
+  const loggedIn = await loginUser({ email: 'spaces@example.com', password });
+  assert.equal(loggedIn.ok, true);
+});
+
 test('default API base URL points to the local JSON Server backend', () => {
   assert.equal(resolveApiBaseUrl(), 'http://127.0.0.1:3000');
 });

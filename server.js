@@ -11,8 +11,8 @@ const jsonServerAuth = require('json-server-auth');
 const bcrypt = require('bcryptjs');
 const authConstants = require('json-server-auth/dist/constants');
 
-if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || !process.env.ADMIN_PASSWORD)) {
-  throw new Error('Production requires JWT_SECRET and ADMIN_PASSWORD environment variables.');
+if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || !process.env.ADMIN_PASSWORD || !process.env.CORS_ORIGINS)) {
+  throw new Error('Production requires JWT_SECRET, ADMIN_PASSWORD, and CORS_ORIGINS environment variables.');
 }
 authConstants.JWT_SECRET_KEY = process.env.JWT_SECRET || 'bungoiangi-local-development-secret';
 
@@ -20,6 +20,10 @@ const projectRoot = dirname(fileURLToPath(import.meta.url));
 const databasePath = resolve(process.env.DATABASE_PATH || `${projectRoot}/server/db.json`);
 const adminEmail = String(process.env.ADMIN_EMAIL || 'admin@bungoiangi.com').trim().toLowerCase();
 const adminPassword = process.env.ADMIN_PASSWORD || 'Admin123!';
+const allowedOrigins = new Set(String(process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean));
 
 if (!existsSync(databasePath)) {
   mkdirSync(dirname(databasePath), { recursive: true });
@@ -270,7 +274,23 @@ function handleCustomerApi(req, res, user) {
   res.status(405).json({ message: 'Phương thức hoặc tài nguyên khách hàng không được hỗ trợ.' });
 }
 
-app.use(jsonServer.defaults());
+app.use(jsonServer.defaults({ noCors: true }));
+app.use((req, res, next) => {
+  const origin = req.get('Origin');
+  if (origin && allowedOrigins.has(origin)) {
+    res.set('Access-Control-Allow-Origin', origin);
+    res.set('Vary', 'Origin');
+    res.set('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Accept,Authorization,Content-Type');
+  }
+
+  if (req.method === 'OPTIONS') {
+    res.status(!origin || allowedOrigins.has(origin) ? 204 : 403).end();
+    return;
+  }
+
+  next();
+});
 app.use(jsonServer.bodyParser);
 app.use((req, _res, next) => {
   if (req.method === 'POST' && ['/register', '/signup', '/users'].includes(req.path)) {
@@ -334,8 +354,9 @@ app.use((req, res, next) => {
 
 app.use(router);
 
-const port = Number(process.env.API_PORT || 3000);
-app.listen(port, '127.0.0.1', () => {
-  console.log(`BungOiAnGi API listening on http://127.0.0.1:${port}`);
+const port = Number(process.env.PORT || process.env.API_PORT || 3000);
+const host = process.env.HOST || '0.0.0.0';
+app.listen(port, host, () => {
+  console.log(`BungOiAnGi API listening on http://${host}:${port}`);
   console.log(`Admin account: ${adminEmail}`);
 });
