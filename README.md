@@ -20,16 +20,16 @@ Tai khoan admin duoc tao lan dau khi API khoi dong. Neu DB da ton tai, hay xoa D
 - Admin: `/660/api/admin/stats`, `/660/api/admin/dishes`, `/660/api/admin/users`.
 - Mon an cong khai: `GET /api/dishes`.
 
-Frontend co the tro toi API host rieng bang `VITE_API_URL`. Database local `server/db.json` bi ignore va khong duoc day len GitHub. De chinh sua qua Admin tren GitHub Pages va giu thay doi, API phai chay rieng va `DATABASE_PATH` phai nam tren persistent storage.
+Frontend co the tro toi API host rieng bang `VITE_API_URL`. Database local `server/db.json` bi ignore va khong duoc day len GitHub. De chinh sua qua Admin tren Vercel va giu thay doi, API phai chay rieng va `DATABASE_PATH` phai nam tren persistent storage.
 
-## Deploy GitHub Pages va Render
+## Deploy Vercel va Render
 
-1. Tao Web Service tu Blueprint `render.yaml` tren Render. Persistent Disk duoc mount tai `/var/data`, nen database dung `/var/data/db.json` va van con sau khi service restart/deploy.
-2. Trong Render, dat `ADMIN_PASSWORD` thanh mat khau manh. Blueprint tao `JWT_SECRET` rieng. `CORS_ORIGINS` mac dinh gioi han den origin GitHub Pages cua repository nay; neu dung custom domain, cap nhat origin nay tren Render.
-3. Cho Render deploy xong, copy URL service (vi du `https://bungoiangi-api.onrender.com`) va them GitHub Actions repository variable `VITE_API_URL` voi URL do, khong them dau `/` cuoi.
-4. Trong Settings → Pages, chon source `GitHub Actions`. Workflow `.github/workflows/deploy-pages.yml` se build va deploy frontend khi push len branch `hiep`; co the chay lai bang `workflow_dispatch`.
-5. Neu muon chon file anh trong Admin, them GitHub Actions repository variables `VITE_CLOUDINARY_CLOUD_NAME` va `VITE_CLOUDINARY_UPLOAD_PRESET`. Neu chi dan URL anh, bo qua buoc nay.
-6. Doi frontend deploy xong, dang nhap Admin, sua anh va bam “Lưu món”. Tai lai trang hoac vao lai Admin de xac nhan URL anh van con tren API.
+1. Import repository vao Vercel. Vercel tu nhan Vite; file `vercel.json` khai bao lenh build va thu muc output.
+2. Tao Web Service tu Blueprint `render.yaml` tren Render. Persistent Disk duoc mount tai `/var/data`, nen database dung `/var/data/db.json` va van con sau khi service restart/deploy.
+3. Trong Render, dat `ADMIN_PASSWORD` thanh mat khau manh. Blueprint tao `JWT_SECRET` rieng va gioi han CORS den `https://webb-bung-oi-an-gi.vercel.app`. Neu dung Vercel domain/custom domain khac, cap nhat `CORS_ORIGINS` tren Render theo origin chinh xac (chi gom scheme va hostname).
+4. Cho Render deploy xong, dat Vercel project environment variable `VITE_API_URL` bang URL service Render (vi du `https://bungoiangi-api.onrender.com`), khong co dau `/` cuoi. Redeploy Vercel de build moi nhan bien nay.
+5. Neu muon chon file anh trong Admin, dat Vercel environment variables `VITE_CLOUDINARY_CLOUD_NAME` va `VITE_CLOUDINARY_UPLOAD_PRESET`. Neu chi dan URL anh, bo qua buoc nay.
+6. Dang nhap Admin, sua anh va bam “Lưu món”. Tai lai trang hoac vao lai Admin de xac nhan URL anh van con tren API.
 
 Render Persistent Disk can goi tra phi va chi gan voi mot service instance. Neu xoa disk/service, du lieu database tren disk co the mat; hay sao luu dinh ky.
 

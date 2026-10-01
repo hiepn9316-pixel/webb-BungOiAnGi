@@ -59,7 +59,7 @@ test('roles protect admin APIs and customer data is scoped to its owner', { time
       ADMIN_EMAIL: 'admin@test.local',
       ADMIN_PASSWORD: 'SecureAdmin123!',
       JWT_SECRET: 'test-secret-that-is-long-enough-for-jwt-validation',
-      CORS_ORIGINS: 'https://hiepn9316-pixel.github.io',
+      CORS_ORIGINS: 'https://webb-bung-oi-an-gi.vercel.app',
       NODE_ENV: 'test',
     },
     stdio: 'ignore',
@@ -78,19 +78,19 @@ test('roles protect admin APIs and customer data is scoped to its owner', { time
   const preflight = await fetch(`${baseUrl}/660/api/admin/dishes`, {
     method: 'OPTIONS',
     headers: {
-      Origin: 'https://hiepn9316-pixel.github.io',
+      Origin: 'https://webb-bung-oi-an-gi.vercel.app',
       'Access-Control-Request-Method': 'PATCH',
       'Access-Control-Request-Headers': 'authorization,content-type',
     },
   });
   assert.equal(preflight.status, 204);
-  assert.equal(preflight.headers.get('access-control-allow-origin'), 'https://hiepn9316-pixel.github.io');
+  assert.equal(preflight.headers.get('access-control-allow-origin'), 'https://webb-bung-oi-an-gi.vercel.app');
   assert.match(preflight.headers.get('access-control-allow-headers'), /authorization/i);
 
   const allowedOriginResponse = await fetch(`${baseUrl}/health`, {
-    headers: { Origin: 'https://hiepn9316-pixel.github.io' },
+    headers: { Origin: 'https://webb-bung-oi-an-gi.vercel.app' },
   });
-  assert.equal(allowedOriginResponse.headers.get('access-control-allow-origin'), 'https://hiepn9316-pixel.github.io');
+  assert.equal(allowedOriginResponse.headers.get('access-control-allow-origin'), 'https://webb-bung-oi-an-gi.vercel.app');
 
   const rejectedOrigin = await fetch(`${baseUrl}/660/api/admin/dishes`, {
     method: 'OPTIONS',
