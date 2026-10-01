@@ -1,0 +1,202 @@
+// ============================================================
+// 🔍 BungOiAnGi – Bộ lọc & Phân loại món ăn (Dish Filters)
+// ============================================================
+
+import { dishes as defaultDishes, BUDGETS, CATEGORIES } from '../../data/dishes.js';
+
+/**
+ * Xóa dấu tiếng Việt và chuẩn hóa chuỗi để tìm kiếm không dấu
+ * Vd: "Phở Bò Tái Nạm" -> "pho bo tai nam"
+ */
+export function removeVietnameseTones(str) {
+  if (!str) return '';
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'd')
+    .trim();
+}
+
+/**
+ * Kiểm tra xem giá trị có phải là "Chọn tất cả" không
+ */
+export function isAll(value) {
+  if (!value) return true;
+  const v = String(value).trim().toLowerCase();
+  return v === 'all' || v === 'tat-ca' || v === '*' || v === '';
+}
+
+/**
+ * Chuẩn hóa mã danh mục (hỗ trợ cả mã cũ và mới)
+ */
+export function normalizeCategory(cat) {
+  if (isAll(cat)) return 'all';
+  const c = String(cat).trim().toLowerCase();
+  if (c === 'mon-nuoc' || c === 'nuoc') return 'nuoc';
+  if (c === 'mon-com' || c === 'com') return 'com';
+  if (c === 'mon-kho' || c === 'xao-kho' || c === 'kho') return 'xao-kho';
+  if (c === 'an-vat' || c === 'anvat') return 'anvat';
+  if (c === 'mon-ngot' || c === 'ngot') return 'ngot';
+  if (c === 'do-uong' || c === 'uong') return 'uong';
+  return c;
+}
+
+/**
+ * Lấy tên hiển thị danh mục
+ */
+export function getCategoryLabel(catId) {
+  const norm = normalizeCategory(catId);
+  const found = CATEGORIES.find(c => c.id === norm);
+  return found ? (found.label || found.name) : 'Món ăn';
+}
+
+/**
+ * Lọc danh sách món ăn theo đa tiêu chí:
+ * Hỗ trợ 2 cú pháp linh hoạt:
+ * - Cách 1: filterDishes(dishesList, { moodId, budgetId, categoryId, query, diet, tags })
+ * - Cách 2: filterDishes(moodId, budgetId, categoryId, query, diet, tags)
+ *
+ * @param {Array<Object>|string} targetOrMood
+ * @param {Object|string} maybeBudgetId
+ * @param {string} maybeCategoryId
+ * @param {string} maybeQuery
+ * @param {string} maybeDiet
+ * @param {Array<string>} maybeTags
+ * @returns {Array<Object>}
+ */
+export function filterDishes(targetOrMood, maybeBudgetId = 'all', maybeCategoryId = 'all', maybeQuery = '', maybeDiet = 'all', maybeTags = []) {
+  let list = defaultDishes;
+  let moodId = null;
+  let budgetId = 'all';
+  let categoryId = 'all';
+  let query = '';
+  let diet = 'all';
+  let tags = [];
+
+  if (Array.isArray(targetOrMood)) {
+    list = targetOrMood;
+    if (typeof maybeBudgetId === 'object' && maybeBudgetId !== null) {
+      const opts = maybeBudgetId;
+      moodId = opts.moodId || null;
+      budgetId = opts.budgetId || 'all';
+      categoryId = opts.categoryId || 'all';
+      query = opts.query || '';
+      diet = opts.diet || opts.type || 'all';
+      tags = opts.tags || [];
+    }
+  } else {
+    moodId = targetOrMood;
+    budgetId = maybeBudgetId;
+    categoryId = maybeCategoryId;
+    query = maybeQuery;
+    diet = maybeDiet;
+    tags = maybeTags;
+  }
+
+  const cleanQuery = removeVietnameseTones(query);
+  const normCategory = normalizeCategory(categoryId);
+
+  return list.filter(dish => {
+    // 1. Lọc theo tâm trạng (mood)
+    if (moodId && !isAll(moodId)) {
+      if (!dish.moods || !dish.moods.includes(moodId)) {
+        return false;
+      }
+    }
+
+    // 2. Lọc theo ngân sách (budget)
+    if (!isAll(budgetId)) {
+      const b = BUDGETS.find(x => x.id === budgetId);
+      if (b) {
+        if (dish.price < b.min || dish.price > b.max) {
+          return false;
+        }
+      } else if (dish.budget !== budgetId) {
+        return false;
+      }
+    }
+
+    // 3. Lọc theo danh mục (category)
+    if (!isAll(normCategory)) {
+      const dishCat = normalizeCategory(dish.category);
+      if (dishCat !== normCategory) {
+        return false;
+      }
+    }
+
+    // 4. Lọc theo loại món: Chay / Mặn (diet / type)
+    if (!isAll(diet)) {
+      const targetDiet = String(diet).toLowerCase();
+      const dishDiet = String(dish.type || dish.diet || '').toLowerCase();
+      if (dishDiet !== targetDiet) {
+        return false;
+      }
+    }
+
+    // 5. Lọc theo từ khóa tìm kiếm (bỏ dấu tiếng Việt, tìm theo tên, mô tả, thẻ tag)
+    if (cleanQuery) {
+      const nameMatch = removeVietnameseTones(dish.name).includes(cleanQuery);
+      const descMatch = removeVietnameseTones(dish.desc || '').includes(cleanQuery);
+      const tagMatch = (dish.tags || []).some(t => removeVietnameseTones(t).includes(cleanQuery));
+      if (!nameMatch && !descMatch && !tagMatch) {
+        return false;
+      }
+    }
+
+    // 6. Lọc theo danh sách tags (nếu chọn nhiều tag, hiển thị món có ít nhất 1 tag trong số đó)
+    if (Array.isArray(tags) && tags.length > 0) {
+      const dishTags = dish.tags || [];
+      const hasAnyTag = tags.some(tag => dishTags.includes(tag));
+      if (!hasAnyTag) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+}
+
+/**
+ * Sắp xếp danh sách món ăn
+ * @param {Array<Object>} list
+ * @param {string} sortMode 'price-asc' | 'price-desc' | 'rating' | 'calo' | 'default'
+ * @returns {Array<Object>}
+ */
+export function sortDishes(list, sortMode = 'default') {
+  if (!Array.isArray(list)) return [];
+  const result = [...list];
+  switch (sortMode) {
+    case 'price-asc':
+      return result.sort((a, b) => a.price - b.price);
+    case 'price-desc':
+      return result.sort((a, b) => b.price - a.price);
+    case 'rating':
+      return result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    case 'calo':
+      return result.sort((a, b) => (a.calo || 0) - (b.calo || 0));
+    default:
+      return result;
+  }
+}
+
+/**
+ * Chọn ngẫu nhiên 1 món ăn từ danh sách đã lọc
+ */
+export function getRandomDish(targetOrMood, maybeBudgetId) {
+  let pool = [];
+  if (Array.isArray(targetOrMood)) {
+    pool = filterDishes(targetOrMood, {
+      moodId: maybeBudgetId?.moodId || (typeof maybeBudgetId === 'string' ? maybeBudgetId : null),
+      budgetId: maybeBudgetId?.budgetId || 'all'
+    });
+  } else {
+    pool = filterDishes(defaultDishes, { moodId: targetOrMood, budgetId: maybeBudgetId });
+  }
+
+  if (pool.length > 0) {
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+  return defaultDishes[Math.floor(Math.random() * defaultDishes.length)];
+}

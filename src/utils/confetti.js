@@ -2,7 +2,12 @@
 // 🎉 BungOiAnGi – Confetti Particle System
 // ============================================================
 
-const COLORS = ['#FF6B35', '#FFB347', '#FF4757', '#2ED573', '#1E90FF', '#FF6EB4', '#FFD700', '#7BED9F'];
+const COLORS = [
+  '#FF6B35','#FFB347','#FF4757','#FF2D55',
+  '#2ED573','#1E90FF','#FF6EB4','#FFD700',
+  '#7BED9F','#ECCC68','#A29BFE','#FD79A8',
+];
+const EMOJIS = ['🍜','🍱','🌶️','🔥','🍚','🎉','⭐','💥','🎊','✨'];
 
 let particles = [];
 let animId = null;
@@ -20,20 +25,24 @@ function ensure() {
   canvas.height = window.innerHeight;
 }
 
-function createParticle(x, y) {
+function createParticle(x, y, options = {}) {
+  const isMini = options.mini;
+  const isEmoji = !isMini && Math.random() < 0.1;
   return {
     x: x ?? Math.random() * window.innerWidth,
     y: y ?? -10,
-    vx: (Math.random() - 0.5) * 8,
-    vy: Math.random() * 4 + 2,
+    vx: (Math.random() - 0.5) * (options.spread ?? 8),
+    vy: Math.random() * (options.upForce ?? 4) + 2,
     rot: Math.random() * 360,
-    rotV: (Math.random() - 0.5) * 6,
-    w: Math.random() * 10 + 5,
-    h: Math.random() * 6 + 3,
+    rotV: (Math.random() - 0.5) * (isMini ? 12 : 8),
+    w: isMini ? Math.random() * 7 + 3 : Math.random() * 14 + 6,
+    h: isMini ? Math.random() * 4 + 2 : Math.random() * 8 + 3,
     color: COLORS[Math.floor(Math.random() * COLORS.length)],
     life: 1,
-    decay: Math.random() * 0.008 + 0.003,
-    type: Math.random() > 0.5 ? 'rect' : 'circle',
+    decay: Math.random() * (options.decay ?? 0.006) + 0.002,
+    type: isEmoji ? 'emoji' : (Math.random() > 0.4 ? 'rect' : 'circle'),
+    emoji: EMOJIS[Math.floor(Math.random() * EMOJIS.length)],
+    scale: isMini ? 0.7 : (Math.random() * 0.5 + 0.7),
   };
 }
 
@@ -43,8 +52,8 @@ function step() {
   particles.forEach(p => {
     p.x += p.vx;
     p.y += p.vy;
-    p.vy += 0.12;
-    p.vx *= 0.99;
+    p.vy += 0.15;
+    p.vx *= 0.985;
     p.rot += p.rotV;
     p.life -= p.decay;
 
@@ -52,12 +61,20 @@ function step() {
     ctx2d.globalAlpha = Math.max(0, p.life);
     ctx2d.translate(p.x, p.y);
     ctx2d.rotate((p.rot * Math.PI) / 180);
-    ctx2d.fillStyle = p.color;
-    if (p.type === 'circle') {
+    ctx2d.scale(p.scale, p.scale);
+
+    if (p.type === 'emoji') {
+      ctx2d.font = '16px serif';
+      ctx2d.textAlign = 'center';
+      ctx2d.textBaseline = 'middle';
+      ctx2d.fillText(p.emoji, 0, 0);
+    } else if (p.type === 'circle') {
+      ctx2d.fillStyle = p.color;
       ctx2d.beginPath();
       ctx2d.arc(0, 0, p.w / 2, 0, Math.PI * 2);
       ctx2d.fill();
     } else {
+      ctx2d.fillStyle = p.color;
       ctx2d.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
     }
     ctx2d.restore();
@@ -66,19 +83,53 @@ function step() {
     animId = requestAnimationFrame(step);
   } else {
     ctx2d.clearRect(0, 0, canvas.width, canvas.height);
+    animId = null;
   }
 }
 
-export function burst(x, y, count = 80) {
+// Standard burst (used by fav saves etc.)
+export function burst(x, y, count = 60) {
   ensure();
   if (animId) cancelAnimationFrame(animId);
   for (let i = 0; i < count; i++) {
-    const p = createParticle(x, y);
-    p.vx = (Math.random() - 0.5) * 16;
-    p.vy = Math.random() * -12 - 4;
-    p.decay = Math.random() * 0.005 + 0.002;
+    const p = createParticle(x, y, { spread: 14, decay: 0.006 });
+    p.vy = Math.random() * -12 - 3;
+    p.vx = (Math.random() - 0.5) * 18;
     particles.push(p);
   }
+  animId = requestAnimationFrame(step);
+}
+
+// Mega BUP! explosion — punchy 2-wave burst, not overwhelming
+export function megaBurst(x, y) {
+  ensure();
+  if (animId) cancelAnimationFrame(animId);
+
+  // Wave 1: radial ring fan — fast outward
+  const total = 60;
+  for (let i = 0; i < total; i++) {
+    const angle = (i / total) * Math.PI * 2;
+    const speed = Math.random() * 12 + 6;
+    const p = createParticle(x, y, { decay: 0.006 });
+    p.vx = Math.cos(angle) * speed;
+    p.vy = Math.sin(angle) * speed - 4;
+    p.w = Math.random() * 12 + 5;
+    p.h = Math.random() * 8 + 3;
+    particles.push(p);
+  }
+
+  // Wave 2 (delayed 80ms): upward confetti shower
+  setTimeout(() => {
+    ensure();
+    for (let i = 0; i < 50; i++) {
+      const p = createParticle(x, y, { spread: 22, decay: 0.005 });
+      p.vy = Math.random() * -16 - 5;
+      p.vx = (Math.random() - 0.5) * 24;
+      particles.push(p);
+    }
+    if (particles.length > 0) animId = requestAnimationFrame(step);
+  }, 80);
+
   animId = requestAnimationFrame(step);
 }
 
