@@ -29,7 +29,7 @@ export const CATEGORIES = [
   { id: 'uong',     label: '🧋 Đồ uống',             icon: '🧋', name: 'Đồ uống' },
 ];
 
-export const dishes = [
+export let dishes = [
   {
     "id": 1,
     "name": "Mì cay Hải Sản",
@@ -1981,6 +1981,10 @@ export const dishes = [
     "diet": "man"
   }
 ];
+
+export function replaceDishes(nextDishes) {
+  if (Array.isArray(nextDishes)) dishes = nextDishes;
+}
 
 export const popularDishes = dishes.filter(d => d.popular);
 export const newDishes = dishes.filter(d => !d.popular).slice(0, 12);

@@ -1,0 +1,133 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
+import { createServer } from 'node:net';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
+async function freePort() {
+  const server = createServer();
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const { port } = server.address();
+  await new Promise((resolveClose, rejectClose) => server.close(error => error ? rejectClose(error) : resolveClose()));
+  return port;
+}
+
+async function waitForServer(baseUrl, child) {
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    if (child.exitCode !== null) throw new Error('API process exited before becoming ready.');
+    try {
+      const response = await fetch(`${baseUrl}/health`);
+      if (response.ok) return;
+    } catch {
+      await new Promise(resolveWait => setTimeout(resolveWait, 75));
+    }
+  }
+  throw new Error('API did not become ready within six seconds.');
+}
+
+async function jsonRequest(url, { token, method = 'GET', body } = {}) {
+  const headers = { Accept: 'application/json' };
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const response = await fetch(url, {
+    method,
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const text = await response.text();
+  return { response, data: text ? JSON.parse(text) : null };
+}
+
+test('roles protect admin APIs and customer data is scoped to its owner', { timeout: 20000 }, async t => {
+  const port = await freePort();
+  const databaseDirectory = mkdtempSync(join(tmpdir(), 'bungoiangi-api-'));
+  const databasePath = join(databaseDirectory, 'db.json');
+  const baseUrl = `http://127.0.0.1:${port}`;
+  const child = spawn(process.execPath, ['server.js'], {
+    cwd: projectRoot,
+    env: {
+      ...process.env,
+      API_PORT: String(port),
+      DATABASE_PATH: databasePath,
+      ADMIN_EMAIL: 'admin@test.local',
+      ADMIN_PASSWORD: 'SecureAdmin123!',
+      JWT_SECRET: 'test-secret-that-is-long-enough-for-jwt-validation',
+      NODE_ENV: 'test',
+    },
+    stdio: 'ignore',
+  });
+
+  t.after(async () => {
+    if (child.exitCode === null) {
+      child.kill();
+      await Promise.race([once(child, 'exit'), new Promise(resolveWait => setTimeout(resolveWait, 1000))]);
+    }
+    rmSync(databaseDirectory, { recursive: true, force: true });
+  });
+
+  await waitForServer(baseUrl, child);
+
+  const anonymousStats = await jsonRequest(`${baseUrl}/660/api/admin/stats`);
+  assert.equal(anonymousStats.response.status, 401);
+
+  const adminLogin = await jsonRequest(`${baseUrl}/login`, {
+    method: 'POST',
+    body: { email: 'admin@test.local', password: 'SecureAdmin123!' },
+  });
+  assert.equal(adminLogin.response.status, 200);
+  const adminToken = adminLogin.data.accessToken;
+
+  const stats = await jsonRequest(`${baseUrl}/660/api/admin/stats`, { token: adminToken });
+  assert.equal(stats.response.status, 200);
+  assert.equal(stats.data.userCount, 1);
+
+  const createdDish = await jsonRequest(`${baseUrl}/660/api/admin/dishes`, {
+    token: adminToken,
+    method: 'POST',
+    body: { name: 'Món kiểm thử', price: 25000, type: 'man', tags: ['test'] },
+  });
+  assert.equal(createdDish.response.status, 201);
+  const updatedDish = await jsonRequest(`${baseUrl}/660/api/admin/dishes/${createdDish.data.id}`, {
+    token: adminToken,
+    method: 'PATCH',
+    body: { name: 'Món đã cập nhật' },
+  });
+  assert.equal(updatedDish.data.name, 'Món đã cập nhật');
+  const deletedDish = await jsonRequest(`${baseUrl}/660/api/admin/dishes/${createdDish.data.id}`, {
+    token: adminToken,
+    method: 'DELETE',
+  });
+  assert.equal(deletedDish.response.status, 204);
+
+  const registration = await jsonRequest(`${baseUrl}/register`, {
+    method: 'POST',
+    body: { name: 'Khách kiểm thử', email: 'customer@test.local', password: 'Customer123!', role: 'admin' },
+  });
+  assert.equal(registration.response.status, 201);
+  assert.equal(registration.data.user.role, 'customer');
+  const customerToken = registration.data.accessToken;
+
+  const forbiddenStats = await jsonRequest(`${baseUrl}/660/api/admin/stats`, { token: customerToken });
+  assert.equal(forbiddenStats.response.status, 403);
+
+  const syncedFavorites = await jsonRequest(`${baseUrl}/660/api/customer/favorites`, {
+    token: customerToken,
+    method: 'PUT',
+    body: { dishIds: [1, 2] },
+  });
+  assert.deepEqual(syncedFavorites.data.dishIds, [1, 2]);
+  const customerHistory = await jsonRequest(`${baseUrl}/660/api/customer/history`, {
+    token: customerToken,
+    method: 'POST',
+    body: { dishId: 1 },
+  });
+  assert.equal(customerHistory.response.status, 201);
+  assert.equal(customerHistory.data.dish.name.length > 0, true);
+});

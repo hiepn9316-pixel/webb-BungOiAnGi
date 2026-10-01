@@ -5,8 +5,9 @@
 import './styles/main.css';
 import './features/airdrop/airdrop.css';
 import './features/auth/auth.css';
+import './features/portals/portals.css';
 
-import { dishes, MOODS, BUDGETS, CATEGORIES } from './data/dishes.js';
+import { dishes, MOODS, BUDGETS, CATEGORIES, replaceDishes } from './data/dishes.js';
 import { filterDishes, sortDishes, getRandomDish, getCategoryLabel } from './features/filters/dishFilters.js';
 import { QUIZ_QUESTIONS, resolveQuizMood } from './features/quiz/quizData.js';
 import { initAirdropManager } from './features/airdrop/airdropManager.js';
@@ -21,7 +22,8 @@ import {
   renderNearbyMap,
   serviceSearchUrl
 } from './features/nearby/nearbyPlaces.js';
-import { apiRegister, apiLogin, apiForgotPassword, getAuthSession, isAuthenticated, logout } from './utils/auth.js';
+import { apiRegister, apiLogin, apiForgotPassword, getAuthSession, isAuthenticated, logout, setAuthSession } from './utils/auth.js';
+import { requestApi, uploadImageToCloudinary } from './utils/apiClient.js';
 
 // ============================================================
 // STATE QUẢN LÝ ỨNG DỤNG
@@ -41,7 +43,34 @@ const state = {
   authMessage: '',
   authMessageType: '',
   authReturnPage: null,
+  profile: null,
+  profileFavorites: [],
+  profileHistory: [],
+  profileMessage: '',
+  profileMessageType: '',
+  adminTab: 'dishes',
+  adminDishes: [],
+  adminUsers: [],
+  adminStats: null,
+  adminMessage: '',
+  adminMessageType: '',
+  adminEditDishId: null,
 };
+
+const PAGE_PATHS = {
+  home: '/',
+  explore: '/explore',
+  quiz: '/quiz',
+  airdrop: '/airdrop',
+  auth: '/auth',
+  favs: '/favs',
+  profile: '/profile',
+  admin: '/admin',
+};
+
+function pageForPath(pathname) {
+  return Object.entries(PAGE_PATHS).find(([, path]) => path === pathname)?.[0] || 'home';
+}
 
 // ============================================================
 // RENDER: APP SHELL & HEADER & PAGES
@@ -57,6 +86,7 @@ function renderApp() {
 
 function renderHeader() {
   const favCount = state.favorites.length;
+  const session = getAuthSession();
   return `
   <header class="header" id="header">
     <div class="header-inner">
@@ -73,6 +103,8 @@ function renderHeader() {
         <button class="nav-btn ${state.activePage === 'quiz' ? 'active' : ''}" data-page="quiz" id="nav-quiz">🤔 Hôm nay ăn gì?</button>
         <button class="nav-btn ${state.activePage === 'airdrop' ? 'active' : ''}" data-page="airdrop" id="nav-airdrop">🎁 Hòm thính</button>
         <button class="nav-btn ${state.activePage === 'auth' ? 'active' : ''}" data-page="auth" id="nav-auth">🔐 Tài khoản</button>
+        ${session?.user ? `<button class="nav-btn ${state.activePage === 'profile' ? 'active' : ''}" data-page="profile" id="nav-profile">👤 Cá nhân</button>` : ''}
+        ${session?.user?.role === 'admin' ? `<button class="nav-btn ${state.activePage === 'admin' ? 'active' : ''}" data-page="admin" id="nav-admin">🛠️ Admin</button>` : ''}
       </nav>
       <button class="fav-btn" id="fav-nav-btn">
         ❤️ Gu của tôi
@@ -91,6 +123,8 @@ function renderPages() {
       <div id="page-airdrop" class="page ${state.activePage === 'airdrop' ? 'active' : ''}"><div id="airdrop-container"></div></div>
       <div id="page-auth" class="page ${state.activePage === 'auth' ? 'active' : ''}">${renderAuthPage()}</div>
       <div id="page-favs" class="page ${state.activePage === 'favs' ? 'active' : ''}">${renderFavs()}</div>
+      <div id="page-profile" class="page ${state.activePage === 'profile' ? 'active' : ''}">${renderProfilePage()}</div>
+      <div id="page-admin" class="page ${state.activePage === 'admin' ? 'active' : ''}">${renderAdminPage()}</div>
     </main>`;
 }
 
@@ -171,6 +205,106 @@ function renderAuthPage() {
         </div>
       </div>
     </div>`;
+}
+
+function renderProfilePage() {
+  const user = state.profile || getAuthSession()?.user;
+  if (!user) return '<section class="portal-page"><p class="portal-empty">Đang tải hồ sơ…</p></section>';
+
+  return `
+    <section class="portal-page">
+      <header class="portal-heading">
+        <div><h1>Hồ sơ cá nhân</h1><p>Thông tin, món yêu thích và lịch sử xem của bạn.</p></div>
+      </header>
+      <p class="portal-message ${state.profileMessageType === 'error' ? 'is-error' : state.profileMessageType === 'success' ? 'is-success' : ''}" id="profile-message" role="status">${escapeHTML(state.profileMessage)}</p>
+      <div class="portal-profile-summary">
+        <div class="portal-metric"><span>Tài khoản</span><strong>${escapeHTML(user.role === 'admin' ? 'Quản trị viên' : 'Khách hàng')}</strong></div>
+        <div class="portal-metric"><span>Món yêu thích</span><strong>${state.profileFavorites.length}</strong></div>
+        <div class="portal-metric"><span>Lượt xem gần đây</span><strong>${state.profileHistory.length}</strong></div>
+      </div>
+      <section class="portal-panel">
+        <h2>Thông tin tài khoản</h2>
+        <form id="profile-form" class="portal-form-grid">
+          <div class="portal-field"><label for="profile-name">Họ và tên</label><input id="profile-name" name="name" value="${escapeHTML(user.name || '')}" required minlength="2" /></div>
+          <div class="portal-field"><label for="profile-email">Email</label><input id="profile-email" value="${escapeHTML(user.email || '')}" readonly /></div>
+          <div class="portal-actions portal-field--wide"><button class="portal-button portal-button--primary" type="submit">Lưu hồ sơ</button></div>
+        </form>
+      </section>
+      <section class="portal-panel">
+        <h2>Món yêu thích đồng bộ</h2>
+        ${state.profileFavorites.length
+          ? `<div class="dishes-grid">${renderDishCards(dishes.filter(dish => state.profileFavorites.includes(Number(dish.id))))}</div>`
+          : '<p class="portal-empty">Bạn chưa lưu món nào.</p>'}
+      </section>
+      <section class="portal-panel">
+        <h2>Lịch sử xem gần đây</h2>
+        ${state.profileHistory.length ? `<div class="portal-table-wrap"><table class="portal-table"><thead><tr><th>Món</th><th>Thời gian</th></tr></thead><tbody>${state.profileHistory.map(item => `<tr><td>${escapeHTML(item.dish?.name || 'Món đã xóa')}</td><td>${escapeHTML(new Date(item.viewedAt).toLocaleString('vi-VN'))}</td></tr>`).join('')}</tbody></table></div>` : '<p class="portal-empty">Chưa có lịch sử xem.</p>'}
+      </section>
+    </section>`;
+}
+
+function renderAdminPage() {
+  const user = getAuthSession()?.user;
+  if (user?.role !== 'admin') return '<section class="portal-page"><p class="portal-empty">Bạn không có quyền truy cập trang quản trị.</p></section>';
+
+  const stats = state.adminStats;
+  const hotDishes = stats?.hotDishes || [];
+  const maximumHotScore = Math.max(1, ...hotDishes.map(dish => dish.favorites * 2 + dish.views));
+  const editingDish = state.adminDishes.find(dish => Number(dish.id) === Number(state.adminEditDishId));
+
+  return `
+    <section class="portal-page">
+      <header class="portal-heading"><div><h1>Bảng quản trị</h1><p>Quản lý món ăn, tài khoản và số liệu sử dụng.</p></div><button type="button" class="portal-button" id="admin-refresh">↻ Làm mới</button></header>
+      <p class="portal-message ${state.adminMessageType === 'error' ? 'is-error' : state.adminMessageType === 'success' ? 'is-success' : ''}" id="admin-message" role="status">${escapeHTML(state.adminMessage)}</p>
+      <div class="portal-metrics">
+        <div class="portal-metric"><span>Người dùng</span><strong>${stats?.userCount ?? '—'}</strong></div>
+        <div class="portal-metric"><span>Món ăn</span><strong>${stats?.dishCount ?? '—'}</strong></div>
+        <div class="portal-metric"><span>Lượt yêu thích</span><strong>${stats?.favoriteCount ?? '—'}</strong></div>
+        <div class="portal-metric"><span>Lượt xem món</span><strong>${stats?.historyCount ?? '—'}</strong></div>
+      </div>
+      <section class="portal-panel">
+        <h2>Món nổi bật</h2>
+        ${hotDishes.length ? `<div class="portal-chart">${hotDishes.map(dish => {
+          const score = dish.favorites * 2 + dish.views;
+          return `<div class="portal-chart-row"><span>${escapeHTML(dish.name)}</span><div class="portal-chart-track"><div class="portal-chart-bar" style="width:${Math.max(3, score / maximumHotScore * 100)}%"></div></div><strong>${score}</strong></div>`;
+        }).join('')}</div>` : '<p class="portal-empty">Chưa có dữ liệu thống kê.</p>'}
+      </section>
+      <div class="portal-segmented" role="group" aria-label="Khu vực quản trị">
+        <button type="button" data-admin-tab="dishes" aria-pressed="${state.adminTab === 'dishes'}">Món ăn</button>
+        <button type="button" data-admin-tab="users" aria-pressed="${state.adminTab === 'users'}">Người dùng</button>
+      </div>
+      ${state.adminTab === 'dishes' ? `
+        <section class="portal-panel">
+          <h2>${editingDish ? 'Sửa món ăn' : 'Thêm món ăn'}</h2>
+          <form id="admin-dish-form" class="portal-form-grid">
+            <div class="portal-field"><label for="admin-dish-name">Tên món</label><input id="admin-dish-name" name="name" value="${escapeHTML(editingDish?.name || '')}" required minlength="2" /></div>
+            <div class="portal-field"><label for="admin-dish-price">Giá (đ)</label><input id="admin-dish-price" name="price" type="number" min="0" value="${editingDish?.price ?? ''}" required /></div>
+            <div class="portal-field portal-field--wide"><label for="admin-dish-desc">Mô tả</label><textarea id="admin-dish-desc" name="desc">${escapeHTML(editingDish?.desc || '')}</textarea></div>
+            <div class="portal-field"><label for="admin-dish-category">Danh mục</label><select id="admin-dish-category" name="category">${CATEGORIES.filter(category => category.id !== 'all').map(category => `<option value="${category.id}" ${editingDish?.category === category.id ? 'selected' : ''}>${escapeHTML(category.name)}</option>`).join('')}</select></div>
+            <div class="portal-field"><label for="admin-dish-type">Loại</label><select id="admin-dish-type" name="type"><option value="man" ${editingDish?.type !== 'chay' ? 'selected' : ''}>Mặn</option><option value="chay" ${editingDish?.type === 'chay' ? 'selected' : ''}>Chay</option></select></div>
+            <div class="portal-field"><label for="admin-dish-calo">Calo</label><input id="admin-dish-calo" name="calo" type="number" min="0" value="${editingDish?.calo ?? 0}" /></div>
+            <div class="portal-field"><label for="admin-dish-tags">Tags (phân cách bằng dấu phẩy)</label><input id="admin-dish-tags" name="tags" value="${escapeHTML((editingDish?.tags || []).join(', '))}" /></div>
+            <div class="portal-field portal-field--wide"><label for="admin-dish-img">URL ảnh</label><input id="admin-dish-img" name="img" value="${escapeHTML(editingDish?.img || '')}" placeholder="https://..." /><input id="admin-dish-image-file" type="file" accept="image/*" /><span class="portal-message" id="image-upload-message" role="status"></span></div>
+            <div class="portal-actions portal-field--wide"><button type="submit" class="portal-button portal-button--primary">${editingDish ? 'Lưu món' : 'Thêm món'}</button>${editingDish ? '<button type="button" class="portal-button" id="admin-cancel-edit">Hủy sửa</button>' : ''}</div>
+          </form>
+        </section>
+        <section class="portal-panel"><h2>Danh sách món (${state.adminDishes.length})</h2>
+          <div class="portal-table-wrap"><table class="portal-table"><thead><tr><th>Món</th><th>Danh mục</th><th>Giá</th><th>Thao tác</th></tr></thead><tbody>${state.adminDishes.map(dish => `<tr><td><div class="portal-dish-cell">${dish.img ? `<img src="${escapeHTML(dish.img)}" alt="" loading="lazy" />` : ''}<span>${escapeHTML(dish.name)}</span></div></td><td>${escapeHTML(getCategoryLabel(dish.category))}</td><td>${formatCurrency(dish.price)}</td><td><div class="portal-actions"><button class="portal-button" type="button" data-edit-dish="${dish.id}">Sửa</button><button class="portal-button portal-button--danger" type="button" data-delete-dish="${dish.id}">Xóa</button></div></td></tr>`).join('')}</tbody></table></div>
+        </section>` : `
+        <section class="portal-panel">
+          <h2>Tạo tài khoản</h2>
+          <form id="admin-user-form" class="portal-form-grid">
+            <div class="portal-field"><label for="admin-user-name">Họ và tên</label><input id="admin-user-name" name="name" required minlength="2" /></div>
+            <div class="portal-field"><label for="admin-user-email">Email</label><input id="admin-user-email" name="email" type="email" required /></div>
+            <div class="portal-field"><label for="admin-user-password">Mật khẩu</label><input id="admin-user-password" name="password" type="password" required minlength="8" /></div>
+            <div class="portal-field"><label for="admin-user-role">Vai trò</label><select id="admin-user-role" name="role"><option value="customer">Khách hàng</option><option value="admin">Admin</option></select></div>
+            <div class="portal-actions portal-field--wide"><button class="portal-button portal-button--primary" type="submit">Tạo người dùng</button></div>
+          </form>
+        </section>
+        <section class="portal-panel"><h2>Danh sách người dùng (${state.adminUsers.length})</h2>
+          <div class="portal-table-wrap"><table class="portal-table"><thead><tr><th>Họ tên</th><th>Email</th><th>Vai trò</th><th>Thao tác</th></tr></thead><tbody>${state.adminUsers.map(user => `<tr><td>${escapeHTML(user.name || '')}</td><td>${escapeHTML(user.email)}</td><td><select aria-label="Vai trò của ${escapeHTML(user.email)}" data-user-role="${user.id}"><option value="customer" ${user.role === 'customer' ? 'selected' : ''}>Khách hàng</option><option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option></select></td><td><button class="portal-button portal-button--danger" type="button" data-delete-user="${user.id}" ${Number(user.id) === Number(getAuthSession()?.user?.id) ? 'disabled' : ''}>Xóa</button></td></tr>`).join('')}</tbody></table></div>
+        </section>`}
+    </section>`;
 }
 
 // ============================================================
@@ -498,6 +632,9 @@ function renderModal() {
 
 function openModal(dish, onRoll) {
   if (!dish) return;
+  if (isAuthenticated()) {
+    requestApi('/api/customer/history', { method: 'POST', body: { dishId: Number(dish.id) } }).catch(() => {});
+  }
   const overlay = document.getElementById('dish-modal');
   document.getElementById('modal-img').src = dish.img;
   document.getElementById('modal-name').textContent = dish.name;
@@ -676,6 +813,16 @@ function toggleFav(id) {
   if (idx >= 0) state.favorites.splice(idx, 1);
   else state.favorites.push(id);
   localStorage.setItem('bung_favs', JSON.stringify(state.favorites));
+  requestApi('/api/customer/favorites', {
+    method: 'PUT',
+    body: { dishIds: state.favorites },
+  }).then(() => {
+    state.profileFavorites = [...state.favorites];
+    if (state.activePage === 'profile') void loadProfileData();
+  }).catch(error => {
+    state.profileMessage = error.message;
+    state.profileMessageType = 'error';
+  });
   return true;
 }
 
@@ -718,7 +865,21 @@ function updateExploreGrid() {
   bindDishCards();
 }
 
-function navigateTo(page) {
+function navigateTo(page, { updateUrl = true } = {}) {
+  if (['favs', 'profile', 'admin'].includes(page) && !isAuthenticated()) {
+    requireAuthentication('Vui lòng đăng nhập hoặc đăng ký để tiếp tục.', page);
+    return;
+  }
+
+  if (page === 'admin' && getAuthSession()?.user?.role !== 'admin') {
+    state.profileMessage = 'Tài khoản khách hàng không được phép truy cập trang quản trị.';
+    state.profileMessageType = 'error';
+    page = 'profile';
+    if (window.location.pathname === PAGE_PATHS.admin) {
+      window.history.replaceState({ page }, '', PAGE_PATHS.profile);
+    }
+  }
+
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   const targetPage = document.getElementById(`page-${page}`);
@@ -726,6 +887,9 @@ function navigateTo(page) {
   const navBtn = document.querySelector(`[data-page="${page}"]`);
   if (navBtn) navBtn.classList.add('active');
   state.activePage = page;
+  if (updateUrl && PAGE_PATHS[page] && window.location.pathname !== PAGE_PATHS[page]) {
+    window.history.pushState({ page }, '', PAGE_PATHS[page]);
+  }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
   if (page === 'airdrop') {
@@ -748,7 +912,79 @@ function navigateTo(page) {
     const favPage = document.getElementById('page-favs');
     if (favPage) favPage.innerHTML = renderFavs();
     bindDishCards();
+    void loadCustomerFavorites();
   }
+
+  if (page === 'profile') void loadProfileData();
+  if (page === 'admin') void loadAdminDashboard();
+}
+
+async function loadRemoteDishes() {
+  try {
+    const remoteDishes = await requestApi('/api/dishes', { auth: false });
+    if (Array.isArray(remoteDishes) && remoteDishes.length) {
+      replaceDishes(remoteDishes);
+      renderApp();
+    }
+  } catch (error) {
+    console.warn('Không thể đồng bộ danh sách món từ API:', error.message);
+  }
+}
+
+async function loadProfileData() {
+  try {
+    const [profile, favorites, history] = await Promise.all([
+      requestApi('/api/me'),
+      requestApi('/api/customer/favorites'),
+      requestApi('/api/customer/history'),
+    ]);
+    state.profile = profile;
+    state.profileFavorites = favorites.dishIds.map(Number);
+    state.profileHistory = history;
+    state.favorites = state.profileFavorites;
+    localStorage.setItem('bung_favs', JSON.stringify(state.favorites));
+    if (state.activePage === 'profile') renderApp();
+  } catch (error) {
+    state.profileMessage = error.message;
+    state.profileMessageType = 'error';
+    if (state.activePage === 'profile') renderApp();
+  }
+}
+
+async function loadCustomerFavorites() {
+  try {
+    const result = await requestApi('/api/customer/favorites');
+    state.favorites = result.dishIds.map(Number);
+    localStorage.setItem('bung_favs', JSON.stringify(state.favorites));
+    updateFavBadge();
+    if (state.activePage === 'favs') {
+      const favPage = document.getElementById('page-favs');
+      if (favPage) favPage.innerHTML = renderFavs();
+      bindDishCards();
+    }
+  } catch (error) {
+    state.profileMessage = error.message;
+  }
+}
+
+async function loadAdminDashboard(successMessage = '') {
+  try {
+    const [stats, adminDishes, users] = await Promise.all([
+      requestApi('/api/admin/stats'),
+      requestApi('/api/admin/dishes'),
+      requestApi('/api/admin/users'),
+    ]);
+    state.adminStats = stats;
+    state.adminDishes = adminDishes;
+    state.adminUsers = users;
+    replaceDishes(adminDishes);
+    state.adminMessage = successMessage;
+    state.adminMessageType = successMessage ? 'success' : '';
+  } catch (error) {
+    state.adminMessage = error.message;
+    state.adminMessageType = 'error';
+  }
+  if (state.activePage === 'admin') renderApp();
 }
 
 function requireAuthentication(message, returnPage = state.activePage) {
@@ -780,6 +1016,150 @@ function bindAll() {
     playClick();
     if (!requireAuthentication('Vui lòng đăng nhập hoặc đăng ký để xem Gu của tôi.', 'favs')) return;
     navigateTo('favs');
+  });
+
+  document.getElementById('profile-form')?.addEventListener('submit', async event => {
+    event.preventDefault();
+    const name = String(new FormData(event.currentTarget).get('name') || '').trim();
+    try {
+      const profile = await requestApi('/api/me', { method: 'PATCH', body: { name } });
+      state.profile = profile;
+      state.profileMessage = 'Hồ sơ đã được cập nhật.';
+      state.profileMessageType = 'success';
+      const session = getAuthSession();
+      if (session?.token) setAuthSession(profile, session.token);
+      renderApp();
+    } catch (error) {
+      state.profileMessage = error.message;
+      state.profileMessageType = 'error';
+      renderApp();
+    }
+  });
+
+  document.getElementById('admin-refresh')?.addEventListener('click', () => void loadAdminDashboard());
+  document.querySelectorAll('[data-admin-tab]').forEach(button => {
+    button.addEventListener('click', () => {
+      state.adminTab = button.dataset.adminTab;
+      renderApp();
+    });
+  });
+
+  document.getElementById('admin-cancel-edit')?.addEventListener('click', () => {
+    state.adminEditDishId = null;
+    renderApp();
+  });
+
+  document.getElementById('admin-dish-image-file')?.addEventListener('change', async event => {
+    const file = event.currentTarget.files?.[0];
+    const message = document.getElementById('image-upload-message');
+    if (!file || !message) return;
+    if (!file.type.startsWith('image/') || file.size > 10 * 1024 * 1024) {
+      message.textContent = 'Chọn ảnh tối đa 10 MB.';
+      message.classList.add('is-error');
+      return;
+    }
+    message.textContent = 'Đang tải ảnh lên Cloudinary…';
+    message.classList.remove('is-error');
+    try {
+      const imageUrl = await uploadImageToCloudinary(file);
+      document.getElementById('admin-dish-img').value = imageUrl;
+      message.textContent = 'Ảnh đã tải lên.';
+    } catch (error) {
+      message.textContent = error.message;
+      message.classList.add('is-error');
+    }
+  });
+
+  document.getElementById('admin-dish-form')?.addEventListener('submit', async event => {
+    event.preventDefault();
+    const values = Object.fromEntries(new FormData(event.currentTarget));
+    const dish = {
+      name: values.name,
+      price: Number(values.price),
+      desc: values.desc,
+      category: values.category,
+      type: values.type,
+      diet: values.type,
+      calo: Number(values.calo || 0),
+      tags: values.tags.split(',').map(tag => tag.trim()).filter(Boolean),
+      img: values.img,
+    };
+    const editingId = state.adminEditDishId;
+    try {
+      await requestApi(editingId ? `/api/admin/dishes/${editingId}` : '/api/admin/dishes', {
+        method: editingId ? 'PATCH' : 'POST',
+        body: dish,
+      });
+      state.adminEditDishId = null;
+      await loadAdminDashboard(editingId ? 'Đã cập nhật món ăn.' : 'Đã thêm món ăn.');
+    } catch (error) {
+      state.adminMessage = error.message;
+      state.adminMessageType = 'error';
+      renderApp();
+    }
+  });
+
+  document.querySelectorAll('[data-edit-dish]').forEach(button => {
+    button.addEventListener('click', () => {
+      state.adminEditDishId = Number(button.dataset.editDish);
+      renderApp();
+    });
+  });
+
+  document.querySelectorAll('[data-delete-dish]').forEach(button => {
+    button.addEventListener('click', async () => {
+      if (!window.confirm('Bạn có chắc muốn xóa món này?')) return;
+      try {
+        await requestApi(`/api/admin/dishes/${button.dataset.deleteDish}`, { method: 'DELETE' });
+        await loadAdminDashboard('Đã xóa món ăn.');
+      } catch (error) {
+        state.adminMessage = error.message;
+        state.adminMessageType = 'error';
+        renderApp();
+      }
+    });
+  });
+
+  document.getElementById('admin-user-form')?.addEventListener('submit', async event => {
+    event.preventDefault();
+    const values = Object.fromEntries(new FormData(event.currentTarget));
+    try {
+      await requestApi('/api/admin/users', { method: 'POST', body: values });
+      await loadAdminDashboard('Đã tạo người dùng.');
+    } catch (error) {
+      state.adminMessage = error.message;
+      state.adminMessageType = 'error';
+      renderApp();
+    }
+  });
+
+  document.querySelectorAll('[data-user-role]').forEach(select => {
+    select.addEventListener('change', async () => {
+      try {
+        await requestApi(`/api/admin/users/${select.dataset.userRole}`, {
+          method: 'PATCH', body: { role: select.value },
+        });
+        await loadAdminDashboard('Đã cập nhật vai trò.');
+      } catch (error) {
+        state.adminMessage = error.message;
+        state.adminMessageType = 'error';
+        renderApp();
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-delete-user]').forEach(button => {
+    button.addEventListener('click', async () => {
+      if (!window.confirm('Bạn có chắc muốn xóa người dùng này?')) return;
+      try {
+        await requestApi(`/api/admin/users/${button.dataset.deleteUser}`, { method: 'DELETE' });
+        await loadAdminDashboard('Đã xóa người dùng.');
+      } catch (error) {
+        state.adminMessage = error.message;
+        state.adminMessageType = 'error';
+        renderApp();
+      }
+    });
   });
 
   document.querySelectorAll('.auth-tab').forEach(btn => {
@@ -821,9 +1201,10 @@ function bindAll() {
       }
       const destination = isPasswordReset ? 'auth' : (state.authReturnPage || 'home');
       state.authReturnPage = null;
-      setTimeout(() => {
+      setTimeout(async () => {
         renderApp();
         navigateTo(destination);
+        if (result.user?.role === 'customer' || result.user?.role === 'admin') await loadCustomerFavorites();
       }, 500);
     } else {
       renderApp();
@@ -1011,3 +1392,7 @@ function bindDishCards() {
 
 // Khởi chạy ứng dụng
 renderApp();
+window.addEventListener('popstate', () => navigateTo(pageForPath(window.location.pathname), { updateUrl: false }));
+const initialPage = pageForPath(window.location.pathname);
+if (initialPage !== 'home') navigateTo(initialPage, { updateUrl: false });
+void loadRemoteDishes();
