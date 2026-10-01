@@ -254,6 +254,7 @@ function renderProfilePage() {
     <section class="portal-page">
       <header class="portal-heading">
         <div><h1>Hồ sơ cá nhân</h1><p>Thông tin, món yêu thích và lịch sử xem của bạn.</p></div>
+        <button type="button" class="portal-button portal-button--danger" id="profile-logout-btn">Đăng xuất</button>
       </header>
       <p class="portal-message ${state.profileMessageType === 'error' ? 'is-error' : state.profileMessageType === 'success' ? 'is-success' : ''}" id="profile-message" role="status">${escapeHTML(state.profileMessage)}</p>
       <div class="portal-profile-summary">
@@ -1396,6 +1397,22 @@ function bindAll() {
 
   document.getElementById('auth-logout-btn')?.addEventListener('click', () => {
     logout();
+    state.authMessage = 'Bạn đã đăng xuất.';
+    state.authMessageType = 'success';
+    renderApp();
+    navigateTo('home');
+  });
+
+  document.getElementById('profile-logout-btn')?.addEventListener('click', () => {
+    logout();
+    state.profile = null;
+    state.profileFavorites = [];
+    state.profileHistory = [];
+    state.favorites = [];
+    localStorage.setItem('bung_favs', '[]');
+    state.profileMessage = '';
+    state.profileMessageType = '';
+    state.authMode = 'login';
     state.authMessage = 'Bạn đã đăng xuất.';
     state.authMessageType = 'success';
     renderApp();

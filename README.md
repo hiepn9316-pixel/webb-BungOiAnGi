@@ -27,7 +27,7 @@ Frontend co the tro toi API host rieng bang `VITE_API_URL`. Database local `serv
 1. Import repository vao Vercel. Vercel tu nhan Vite; file `vercel.json` khai bao lenh build va thu muc output.
 2. Tao Web Service tu Blueprint `render.yaml` tren Render. Persistent Disk duoc mount tai `/var/data`, nen database dung `/var/data/db.json` va van con sau khi service restart/deploy.
 3. Trong Render, dat `ADMIN_PASSWORD` thanh mat khau manh. Blueprint tao `JWT_SECRET` rieng va gioi han CORS den `https://webb-bung-oi-an-gi.vercel.app`. Neu dung Vercel domain/custom domain khac, cap nhat `CORS_ORIGINS` tren Render theo origin chinh xac (chi gom scheme va hostname).
-4. Cho Render deploy xong, dat Vercel project environment variable `VITE_API_URL` bang URL service Render (vi du `https://bungoiangi-api.onrender.com`), khong co dau `/` cuoi. Redeploy Vercel de build moi nhan bien nay.
+4. Cho Render deploy xong, dat Vercel project environment variable `VITE_API_URL` bang URL service Render (vi du `https://bungoiangi-api.onrender.com`), khong them dau `/` cuoi. Redeploy Vercel de build moi nhan bien nay.
 5. Neu muon chon file anh trong Admin, dat Vercel environment variables `VITE_CLOUDINARY_CLOUD_NAME` va `VITE_CLOUDINARY_UPLOAD_PRESET`. Neu chi dan URL anh, bo qua buoc nay.
 6. Dang nhap Admin, sua anh va bam “Lưu món”. Tai lai trang hoac vao lai Admin de xac nhan URL anh van con tren API.
 
