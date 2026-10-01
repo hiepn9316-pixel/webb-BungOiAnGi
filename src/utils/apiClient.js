@@ -37,7 +37,8 @@ export async function requestApi(path, { method = 'GET', body, auth = true, sign
   const headers = new Headers();
   if (body !== undefined) headers.set('Content-Type', 'application/json');
 
-  const token = readSession()?.token;
+  const session = readSession();
+  const token = session?.provider === 'supabase' ? null : session?.token;
   if (auth && token) headers.set('Authorization', `Bearer ${token}`);
 
   const response = await fetch(`${API_BASE_URL}${guardedPath}`, {
@@ -58,7 +59,7 @@ export async function requestApi(path, { method = 'GET', body, auth = true, sign
   }
 
   if (!response.ok) {
-    if (response.status === 401 && auth) {
+    if (response.status === 401 && auth && session?.provider !== 'supabase') {
       if (typeof window !== 'undefined' && window.localStorage) {
         window.localStorage.removeItem(AUTH_STORAGE_KEY);
       } else if (globalThis.__bungoiangi_store__) {

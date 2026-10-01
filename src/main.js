@@ -22,7 +22,7 @@ import {
   renderNearbyMap,
   serviceSearchUrl
 } from './features/nearby/nearbyPlaces.js';
-import { AUTH_SESSION_EXPIRED_EVENT, apiRegister, apiLogin, apiForgotPassword, getAuthSession, isAuthenticated, logout, setAuthSession } from './utils/auth.js';
+import { AUTH_SESSION_EXPIRED_EVENT, apiRegister, apiLogin, apiForgotPassword, getAuthSession, initializeAuth, isAuthenticated, logout, updateProfileName } from './utils/auth.js';
 import { requestApi, uploadImageToCloudinary } from './utils/apiClient.js';
 
 // ============================================================
@@ -203,7 +203,7 @@ function renderAuthPage() {
             </div>
           </div>
 
-          <div class="auth-message info" style="margin-bottom: 1rem;">📌 Tài khoản mới đăng ký sẽ có vai trò khách hàng. Admin có thể xem danh sách tại Menu → Quản trị → Người dùng.</div>
+          <div class="auth-message info" style="margin-bottom: 1rem;">📌 Tài khoản đăng ký mới có quyền khách hàng.</div>
 
           <form class="auth-form" id="auth-form">
             ${isRegister ? `
@@ -271,7 +271,7 @@ function renderProfilePage() {
         </form>
       </section>
       <section class="portal-panel">
-        <h2>Món yêu thích đồng bộ</h2>
+        <h2>${getAuthSession()?.provider === 'supabase' ? 'Món yêu thích trên thiết bị này' : 'Món yêu thích đồng bộ'}</h2>
         ${state.profileFavorites.length
       ? `<div class="dishes-grid">${renderDishCards(dishes.filter(dish => state.profileFavorites.includes(Number(dish.id))))}</div>`
       : '<p class="portal-empty">Bạn chưa lưu món nào.</p>'}
@@ -653,7 +653,7 @@ function renderModal() {
 
 function openModal(dish, onRoll) {
   if (!dish) return;
-  if (isAuthenticated() && getAuthSession()?.user?.role === 'customer') {
+  if (isAuthenticated() && getAuthSession()?.provider !== 'supabase' && getAuthSession()?.user?.role === 'customer') {
     requestApi('/api/customer/history', { method: 'POST', body: { dishId: Number(dish.id) } }).catch(() => { });
   }
   const overlay = document.getElementById('dish-modal');
@@ -834,6 +834,11 @@ function toggleFav(id) {
   if (idx >= 0) state.favorites.splice(idx, 1);
   else state.favorites.push(id);
   localStorage.setItem('bung_favs', JSON.stringify(state.favorites));
+  if (getAuthSession()?.provider === 'supabase') {
+    state.profileFavorites = [...state.favorites];
+    return true;
+  }
+
   requestApi('/api/customer/favorites', {
     method: 'PUT',
     body: { dishIds: state.favorites },
@@ -966,6 +971,15 @@ async function loadRemoteDishes() {
 }
 
 async function loadProfileData() {
+  const session = getAuthSession();
+  if (session?.provider === 'supabase') {
+    state.profile = session.user;
+    state.profileFavorites = [...state.favorites];
+    state.profileHistory = [];
+    if (state.activePage === 'profile') renderApp();
+    return;
+  }
+
   try {
     const [profile, favorites, history] = await Promise.all([
       requestApi('/api/me'),
@@ -986,6 +1000,8 @@ async function loadProfileData() {
 }
 
 async function loadCustomerFavorites() {
+  if (getAuthSession()?.provider === 'supabase') return;
+
   try {
     const result = await requestApi('/api/customer/favorites');
     state.favorites = result.dishIds.map(Number);
@@ -1121,12 +1137,12 @@ function bindAll() {
     event.preventDefault();
     const name = String(new FormData(event.currentTarget).get('name') || '').trim();
     try {
-      const profile = await requestApi('/api/me', { method: 'PATCH', body: { name } });
+      const profile = getAuthSession()?.provider === 'supabase'
+        ? await updateProfileName(name)
+        : await requestApi('/api/me', { method: 'PATCH', body: { name } });
       state.profile = profile;
       state.profileMessage = 'Hồ sơ đã được cập nhật.';
       state.profileMessageType = 'success';
-      const session = getAuthSession();
-      if (session?.token) setAuthSession(profile, session.token);
       renderApp();
     } catch (error) {
       state.profileMessage = error.message;
@@ -1378,6 +1394,11 @@ function bindAll() {
     state.authMessage = result.message;
     state.authMessageType = result.ok ? 'success' : 'error';
 
+    if (result.requiresEmailConfirmation) {
+      renderApp();
+      return;
+    }
+
     if (result.ok) {
       const isPasswordReset = state.authMode === 'forgot';
       if (isPasswordReset) {
@@ -1395,28 +1416,40 @@ function bindAll() {
     }
   });
 
-  document.getElementById('auth-logout-btn')?.addEventListener('click', () => {
-    logout();
-    state.authMessage = 'Bạn đã đăng xuất.';
-    state.authMessageType = 'success';
-    renderApp();
-    navigateTo('home');
+  document.getElementById('auth-logout-btn')?.addEventListener('click', async () => {
+    try {
+      await logout();
+      state.authMessage = 'Bạn đã đăng xuất.';
+      state.authMessageType = 'success';
+      renderApp();
+      navigateTo('home');
+    } catch (error) {
+      state.authMessage = error.message;
+      state.authMessageType = 'error';
+      renderApp();
+    }
   });
 
-  document.getElementById('profile-logout-btn')?.addEventListener('click', () => {
-    logout();
-    state.profile = null;
-    state.profileFavorites = [];
-    state.profileHistory = [];
-    state.favorites = [];
-    localStorage.setItem('bung_favs', '[]');
-    state.profileMessage = '';
-    state.profileMessageType = '';
-    state.authMode = 'login';
-    state.authMessage = 'Bạn đã đăng xuất.';
-    state.authMessageType = 'success';
-    renderApp();
-    navigateTo('home');
+  document.getElementById('profile-logout-btn')?.addEventListener('click', async () => {
+    try {
+      await logout();
+      state.profile = null;
+      state.profileFavorites = [];
+      state.profileHistory = [];
+      state.favorites = [];
+      localStorage.setItem('bung_favs', '[]');
+      state.profileMessage = '';
+      state.profileMessageType = '';
+      state.authMode = 'login';
+      state.authMessage = 'Bạn đã đăng xuất.';
+      state.authMessageType = 'success';
+      renderApp();
+      navigateTo('home');
+    } catch (error) {
+      state.profileMessage = error.message;
+      state.profileMessageType = 'error';
+      renderApp();
+    }
   });
 
   document.getElementById('logo-link')?.addEventListener('click', (e) => {
@@ -1594,8 +1627,16 @@ window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, () => {
   renderApp();
   navigateTo('auth');
 });
-renderApp();
 window.addEventListener('popstate', () => navigateTo(pageForPath(window.location.pathname), { updateUrl: false }));
-const initialPage = pageForPath(window.location.pathname);
-if (initialPage !== 'home') navigateTo(initialPage, { updateUrl: false });
-void loadRemoteDishes();
+void (async () => {
+  try {
+    await initializeAuth();
+  } catch (error) {
+    state.authMessage = `Không thể khôi phục phiên đăng nhập: ${error.message}`;
+    state.authMessageType = 'error';
+  }
+  renderApp();
+  const initialPage = pageForPath(window.location.pathname);
+  if (initialPage !== 'home') navigateTo(initialPage, { updateUrl: false });
+  void loadRemoteDishes();
+})();
