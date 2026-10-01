@@ -12,6 +12,7 @@ import { initAirdropManager } from './features/airdrop/airdropManager.js';
 import { playClick, playSelect, playBup, playWin } from './utils/uiAudio.js';
 import { burst, megaBurst } from './utils/confetti.js';
 import { formatCurrency } from './utils/formatCurrency.js';
+import { recordServiceClick } from './utils/serviceClickStats.js';
 import {
   findNearbyPlaces,
   getCurrentPosition,
@@ -561,7 +562,9 @@ function renderNearbyPanel(dish, panel = document.getElementById('modal-nearby-p
   panel.querySelectorAll('[data-service]').forEach(button => {
     button.addEventListener('click', () => {
       const query = dish.name;
-      window.open(serviceSearchUrl(button.dataset.service, query, currentLocation), '_blank', 'noopener,noreferrer');
+      const service = button.dataset.service;
+      recordServiceClick({ service, dishId: dish.id, dishName: query });
+      window.open(serviceSearchUrl(service, query, currentLocation), '_blank', 'noopener,noreferrer');
     });
   });
 
