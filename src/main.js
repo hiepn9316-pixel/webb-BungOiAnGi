@@ -4,6 +4,7 @@
 
 import './styles/main.css';
 import './features/airdrop/airdrop.css';
+import './features/auth/auth.css';
 
 import { dishes, MOODS, BUDGETS, CATEGORIES } from './data/dishes.js';
 import { filterDishes, sortDishes, getRandomDish, getCategoryLabel } from './features/filters/dishFilters.js';
@@ -12,6 +13,7 @@ import { initAirdropManager } from './features/airdrop/airdropManager.js';
 import { playClick, playSelect, playBup, playWin } from './utils/uiAudio.js';
 import { burst, megaBurst } from './utils/confetti.js';
 import { formatCurrency } from './utils/formatCurrency.js';
+import { recordServiceClick } from './utils/serviceClickStats.js';
 import {
   findNearbyPlaces,
   getCurrentPosition,
@@ -19,6 +21,7 @@ import {
   renderNearbyMap,
   serviceSearchUrl
 } from './features/nearby/nearbyPlaces.js';
+import { apiRegister, apiLogin, apiForgotPassword, getAuthSession, logout } from './utils/auth.js';
 
 // ============================================================
 // STATE QUẢN LÝ ỨNG DỤNG
@@ -34,6 +37,9 @@ const state = {
   quizAnswers: {},
   quizStep: 0,
   quizAdvancing: false,
+  authMode: 'login',
+  authMessage: '',
+  authMessageType: '',
 };
 
 // ============================================================
@@ -65,6 +71,7 @@ function renderHeader() {
         <button class="nav-btn" data-page="explore" id="nav-explore">🔍 Khám phá</button>
         <button class="nav-btn" data-page="quiz" id="nav-quiz">🤔 Hôm nay ăn gì?</button>
         <button class="nav-btn" data-page="airdrop" id="nav-airdrop">🎁 Hòm thính</button>
+        <button class="nav-btn" data-page="auth" id="nav-auth">🔐 Tài khoản</button>
       </nav>
       <button class="fav-btn" id="fav-nav-btn">
         ❤️ Gu của tôi
@@ -81,8 +88,88 @@ function renderPages() {
       <div id="page-explore" class="page">${renderExplore()}</div>
       <div id="page-quiz" class="page">${renderQuiz()}</div>
       <div id="page-airdrop" class="page"><div id="airdrop-container"></div></div>
+      <div id="page-auth" class="page">${renderAuthPage()}</div>
       <div id="page-favs" class="page">${renderFavs()}</div>
     </main>`;
+}
+
+function renderAuthPage() {
+  const session = getAuthSession();
+  if (session?.user) {
+    return `
+      <div class="auth-shell">
+        <div class="auth-account-box">
+          <div class="avatar">👋</div>
+          <h3>Xin chào, ${session.user.name}</h3>
+          <p>${session.user.email}</p>
+          <div class="meta">🔐 Đã đăng nhập • Token được lưu</div>
+          <button class="btn-primary" id="auth-logout-btn" style="width:100%; max-width:220px;">Đăng xuất</button>
+        </div>
+      </div>`;
+  }
+
+  const mode = state.authMode || 'login';
+  const isRegister = mode === 'register';
+  const isForgot = mode === 'forgot';
+
+  return `
+    <div class="auth-shell">
+      <div class="auth-card">
+        <div class="auth-hero">
+          <span class="eyebrow">BungOiAnGi</span>
+          <h2>Trải nghiệm đặt món dễ dàng hơn.</h2>
+          <p>Đăng nhập để lưu gu món yêu thích, giữ trạng thái cá nhân và đặt hàng nhanh qua ShopeeFood / GrabFood.</p>
+          <div class="hero-badges">
+            <span class="hero-badge">⚡ Tự động lưu token</span>
+            <span class="hero-badge">🔒 Bảo mật đơn giản</span>
+            <span class="hero-badge">📦 Quản lý tài khoản</span>
+          </div>
+        </div>
+
+        <div class="auth-panel">
+          <div class="auth-header">
+            <h3>${isForgot ? 'Quên mật khẩu' : isRegister ? 'Đăng ký' : 'Đăng nhập'}</h3>
+            <div class="auth-switcher">
+              <button type="button" class="auth-tab ${mode === 'login' ? 'active' : ''}" data-auth-mode="login">Đăng nhập</button>
+              <button type="button" class="auth-tab ${mode === 'register' ? 'active' : ''}" data-auth-mode="register">Đăng ký</button>
+              <button type="button" class="auth-tab ${mode === 'forgot' ? 'active' : ''}" data-auth-mode="forgot">Quên MK</button>
+            </div>
+          </div>
+
+          <form class="auth-form" id="auth-form">
+            ${isRegister ? `
+              <div class="form-row">
+                <label for="auth-name">Họ và tên</label>
+                <input id="auth-name" name="name" type="text" placeholder="Nhập tên của bạn" />
+              </div>
+            ` : ''}
+
+            <div class="form-row">
+              <label for="auth-email">Email</label>
+              <input id="auth-email" name="email" type="email" placeholder="name@example.com" required />
+            </div>
+
+            ${!isForgot ? `
+              <div class="form-row">
+                <label for="auth-password">Mật khẩu</label>
+                <input id="auth-password" name="password" type="password" placeholder="Nhập mật khẩu" required />
+              </div>
+            ` : `
+              <div class="form-row">
+                <label for="auth-new-password">Mật khẩu mới</label>
+                <input id="auth-new-password" name="newPassword" type="password" placeholder="Tạo mật khẩu mới" required />
+              </div>
+            `}
+
+            <button type="submit" class="auth-submit">
+              ${isForgot ? 'Đặt lại mật khẩu' : isRegister ? 'Tạo tài khoản' : 'Đăng nhập'}
+            </button>
+          </form>
+
+          <div id="auth-message" class="auth-message ${state.authMessageType}">${state.authMessage}</div>
+        </div>
+      </div>
+    </div>`;
 }
 
 // ============================================================
@@ -561,7 +648,9 @@ function renderNearbyPanel(dish, panel = document.getElementById('modal-nearby-p
   panel.querySelectorAll('[data-service]').forEach(button => {
     button.addEventListener('click', () => {
       const query = dish.name;
-      window.open(serviceSearchUrl(button.dataset.service, query, currentLocation), '_blank', 'noopener,noreferrer');
+      const service = button.dataset.service;
+      recordServiceClick({ service, dishId: dish.id, dishName: query });
+      window.open(serviceSearchUrl(service, query, currentLocation), '_blank', 'noopener,noreferrer');
     });
   });
 
@@ -671,6 +760,59 @@ function bindAll() {
   document.getElementById('fav-nav-btn')?.addEventListener('click', () => {
     playClick();
     navigateTo('favs');
+  });
+
+  document.querySelectorAll('.auth-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.authMode = btn.dataset.authMode;
+      state.authMessage = '';
+      state.authMessageType = '';
+      renderApp();
+    });
+  });
+
+  document.getElementById('auth-form')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const payload = {
+      name: String(formData.get('name') || '').trim(),
+      email: String(formData.get('email') || '').trim(),
+      password: String(formData.get('password') || '').trim(),
+      newPassword: String(formData.get('newPassword') || '').trim(),
+    };
+
+    let result;
+    if (state.authMode === 'register') {
+      result = await apiRegister(payload);
+    } else if (state.authMode === 'forgot') {
+      result = await apiForgotPassword({ email: payload.email, newPassword: payload.newPassword });
+    } else {
+      result = await apiLogin({ email: payload.email, password: payload.password });
+    }
+
+    state.authMessage = result.message;
+    state.authMessageType = result.ok ? 'success' : 'error';
+
+    if (result.ok) {
+      if (state.authMode === 'forgot') {
+        state.authMode = 'login';
+      }
+      setTimeout(() => {
+        renderApp();
+        navigateTo('home');
+      }, 500);
+    } else {
+      renderApp();
+    }
+  });
+
+  document.getElementById('auth-logout-btn')?.addEventListener('click', () => {
+    logout();
+    state.authMessage = 'Bạn đã đăng xuất.';
+    state.authMessageType = 'success';
+    renderApp();
+    navigateTo('home');
   });
 
   document.getElementById('logo-link')?.addEventListener('click', (e) => {
