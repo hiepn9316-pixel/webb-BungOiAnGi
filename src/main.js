@@ -102,9 +102,9 @@ function renderHeader() {
         <button class="nav-btn ${state.activePage === 'explore' ? 'active' : ''}" data-page="explore" id="nav-explore">🔍 Khám phá</button>
         <button class="nav-btn ${state.activePage === 'quiz' ? 'active' : ''}" data-page="quiz" id="nav-quiz">🤔 Hôm nay ăn gì?</button>
         <button class="nav-btn ${state.activePage === 'airdrop' ? 'active' : ''}" data-page="airdrop" id="nav-airdrop">🎁 Hòm thính</button>
+        <button class="nav-btn nav-btn--admin ${state.activePage === 'admin' ? 'active' : ''}" data-page="admin" id="nav-admin">🛠️ Quản trị</button>
         <button class="nav-btn ${state.activePage === 'auth' ? 'active' : ''}" data-page="auth" id="nav-auth">🔐 Tài khoản</button>
         ${session?.user ? `<button class="nav-btn ${state.activePage === 'profile' ? 'active' : ''}" data-page="profile" id="nav-profile">👤 Cá nhân</button>` : ''}
-        ${session?.user?.role === 'admin' ? `<button class="nav-btn ${state.activePage === 'admin' ? 'active' : ''}" data-page="admin" id="nav-admin">🛠️ Admin</button>` : ''}
       </nav>
       <button class="fav-btn" id="fav-nav-btn">
         ❤️ Gu của tôi
@@ -254,21 +254,8 @@ function renderAdminPage() {
 
   return `
     <section class="portal-page">
-      <header class="portal-heading"><div><h1>Bảng quản trị</h1><p>Quản lý món ăn, tài khoản và số liệu sử dụng.</p></div><button type="button" class="portal-button" id="admin-refresh">↻ Làm mới</button></header>
+      <header class="portal-heading"><div><h1>Bảng quản trị</h1><p>Quản lý món ăn, tài khoản và số liệu sử dụng.</p></div><div class="portal-actions">${state.adminTab === 'dishes' ? '<button type="button" class="portal-button portal-button--primary" id="admin-add-dish">＋ Thêm món</button>' : '<button type="button" class="portal-button portal-button--primary" id="admin-add-user">＋ Tạo tài khoản</button>'}<button type="button" class="portal-button" id="admin-refresh">↻ Làm mới</button></div></header>
       <p class="portal-message ${state.adminMessageType === 'error' ? 'is-error' : state.adminMessageType === 'success' ? 'is-success' : ''}" id="admin-message" role="status">${escapeHTML(state.adminMessage)}</p>
-      <div class="portal-metrics">
-        <div class="portal-metric"><span>Người dùng</span><strong>${stats?.userCount ?? '—'}</strong></div>
-        <div class="portal-metric"><span>Món ăn</span><strong>${stats?.dishCount ?? '—'}</strong></div>
-        <div class="portal-metric"><span>Lượt yêu thích</span><strong>${stats?.favoriteCount ?? '—'}</strong></div>
-        <div class="portal-metric"><span>Lượt xem món</span><strong>${stats?.historyCount ?? '—'}</strong></div>
-      </div>
-      <section class="portal-panel">
-        <h2>Món nổi bật</h2>
-        ${hotDishes.length ? `<div class="portal-chart">${hotDishes.map(dish => {
-          const score = dish.favorites * 2 + dish.views;
-          return `<div class="portal-chart-row"><span>${escapeHTML(dish.name)}</span><div class="portal-chart-track"><div class="portal-chart-bar" style="width:${Math.max(3, score / maximumHotScore * 100)}%"></div></div><strong>${score}</strong></div>`;
-        }).join('')}</div>` : '<p class="portal-empty">Chưa có dữ liệu thống kê.</p>'}
-      </section>
       <div class="portal-segmented" role="group" aria-label="Khu vực quản trị">
         <button type="button" data-admin-tab="dishes" aria-pressed="${state.adminTab === 'dishes'}">Món ăn</button>
         <button type="button" data-admin-tab="users" aria-pressed="${state.adminTab === 'users'}">Người dùng</button>
@@ -289,7 +276,7 @@ function renderAdminPage() {
           </form>
         </section>
         <section class="portal-panel"><h2>Danh sách món (${state.adminDishes.length})</h2>
-          <div class="portal-table-wrap"><table class="portal-table"><thead><tr><th>Món</th><th>Danh mục</th><th>Giá</th><th>Thao tác</th></tr></thead><tbody>${state.adminDishes.map(dish => `<tr><td><div class="portal-dish-cell">${dish.img ? `<img src="${escapeHTML(dish.img)}" alt="" loading="lazy" />` : ''}<span>${escapeHTML(dish.name)}</span></div></td><td>${escapeHTML(getCategoryLabel(dish.category))}</td><td>${formatCurrency(dish.price)}</td><td><div class="portal-actions"><button class="portal-button" type="button" data-edit-dish="${dish.id}">Sửa</button><button class="portal-button portal-button--danger" type="button" data-delete-dish="${dish.id}">Xóa</button></div></td></tr>`).join('')}</tbody></table></div>
+          <div class="portal-table-wrap"><table class="portal-table"><thead><tr><th>Món</th><th>Danh mục</th><th>Giá</th><th>Thao tác</th></tr></thead><tbody>${state.adminDishes.map(dish => `<tr><td><div class="portal-dish-cell">${dish.img ? `<img src="${escapeHTML(dish.img)}" alt="" loading="lazy" />` : ''}<span>${escapeHTML(dish.name)}</span></div></td><td>${escapeHTML(getCategoryLabel(dish.category))}</td><td>${formatCurrency(dish.price)}</td><td><div class="portal-actions"><button class="portal-button" type="button" data-view-dish="${dish.id}">Xem</button><button class="portal-button" type="button" data-edit-dish="${dish.id}">Sửa</button><button class="portal-button portal-button--danger" type="button" data-delete-dish="${dish.id}">Xóa</button></div></td></tr>`).join('')}</tbody></table></div>
         </section>` : `
         <section class="portal-panel">
           <h2>Tạo tài khoản</h2>
@@ -304,6 +291,19 @@ function renderAdminPage() {
         <section class="portal-panel"><h2>Danh sách người dùng (${state.adminUsers.length})</h2>
           <div class="portal-table-wrap"><table class="portal-table"><thead><tr><th>Họ tên</th><th>Email</th><th>Vai trò</th><th>Thao tác</th></tr></thead><tbody>${state.adminUsers.map(user => `<tr><td>${escapeHTML(user.name || '')}</td><td>${escapeHTML(user.email)}</td><td><select aria-label="Vai trò của ${escapeHTML(user.email)}" data-user-role="${user.id}"><option value="customer" ${user.role === 'customer' ? 'selected' : ''}>Khách hàng</option><option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option></select></td><td><button class="portal-button portal-button--danger" type="button" data-delete-user="${user.id}" ${Number(user.id) === Number(getAuthSession()?.user?.id) ? 'disabled' : ''}>Xóa</button></td></tr>`).join('')}</tbody></table></div>
         </section>`}
+      <div class="portal-metrics">
+        <div class="portal-metric"><span>Người dùng</span><strong>${stats?.userCount ?? '—'}</strong></div>
+        <div class="portal-metric"><span>Món ăn</span><strong>${stats?.dishCount ?? '—'}</strong></div>
+        <div class="portal-metric"><span>Lượt yêu thích</span><strong>${stats?.favoriteCount ?? '—'}</strong></div>
+        <div class="portal-metric"><span>Lượt xem món</span><strong>${stats?.historyCount ?? '—'}</strong></div>
+      </div>
+      <section class="portal-panel">
+        <h2>Món nổi bật</h2>
+        ${hotDishes.length ? `<div class="portal-chart">${hotDishes.map(dish => {
+          const score = dish.favorites * 2 + dish.views;
+          return `<div class="portal-chart-row"><span>${escapeHTML(dish.name)}</span><div class="portal-chart-track"><div class="portal-chart-bar" style="width:${Math.max(3, score / maximumHotScore * 100)}%"></div></div><strong>${score}</strong></div>`;
+        }).join('')}</div>` : '<p class="portal-empty">Chưa có dữ liệu thống kê.</p>'}
+      </section>
     </section>`;
 }
 
@@ -632,7 +632,7 @@ function renderModal() {
 
 function openModal(dish, onRoll) {
   if (!dish) return;
-  if (isAuthenticated()) {
+  if (isAuthenticated() && getAuthSession()?.user?.role === 'customer') {
     requestApi('/api/customer/history', { method: 'POST', body: { dishId: Number(dish.id) } }).catch(() => {});
   }
   const overlay = document.getElementById('dish-modal');
@@ -1037,6 +1037,15 @@ function bindAll() {
   });
 
   document.getElementById('admin-refresh')?.addEventListener('click', () => void loadAdminDashboard());
+  document.getElementById('admin-add-dish')?.addEventListener('click', () => {
+    state.adminEditDishId = null;
+    document.getElementById('admin-dish-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('admin-dish-name')?.focus({ preventScroll: true });
+  });
+  document.getElementById('admin-add-user')?.addEventListener('click', () => {
+    document.getElementById('admin-user-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('admin-user-name')?.focus({ preventScroll: true });
+  });
   document.querySelectorAll('[data-admin-tab]').forEach(button => {
     button.addEventListener('click', () => {
       state.adminTab = button.dataset.adminTab;
@@ -1103,6 +1112,13 @@ function bindAll() {
     button.addEventListener('click', () => {
       state.adminEditDishId = Number(button.dataset.editDish);
       renderApp();
+    });
+  });
+
+  document.querySelectorAll('[data-view-dish]').forEach(button => {
+    button.addEventListener('click', () => {
+      const dish = state.adminDishes.find(item => Number(item.id) === Number(button.dataset.viewDish));
+      if (dish) openModal(dish, false);
     });
   });
 

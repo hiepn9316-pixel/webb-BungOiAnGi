@@ -1,7 +1,7 @@
 .portal-page {
   width: min(1180px, 100% - 2rem);
   margin: 0 auto;
-  padding: 2.25rem 0 4rem;
+  padding: 1rem 0 4rem;
 }
 
 .portal-heading {
@@ -9,7 +9,7 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .portal-heading h1 {
@@ -24,7 +24,7 @@
 }
 
 .portal-panel {
-  margin-top: 1.25rem;
+  margin-top: 0.75rem;
   padding: 1.25rem;
   background: #fff;
   border: 1px solid var(--border);
@@ -40,6 +40,10 @@
   min-height: 1.4rem;
   margin: 0.75rem 0;
   color: var(--text-sub);
+}
+
+.portal-message:empty {
+  display: none;
 }
 
 .portal-message.is-error {
@@ -154,11 +158,11 @@
 .portal-segmented {
   display: inline-flex;
   gap: 0.25rem;
-  margin: 0 0 1rem;
+  margin: 0 0 0.5rem;
   padding: 0.25rem;
-  border: 1px solid var(--border);
+  border: 1px solid #d9c2aa;
   border-radius: 7px;
-  background: var(--cream);
+  background: #f2e8dc;
 }
 
 .portal-segmented button {
@@ -172,9 +176,10 @@
 }
 
 .portal-segmented button[aria-pressed="true"] {
-  background: #fff;
-  color: var(--text);
-  box-shadow: 0 1px 4px rgba(45, 32, 19, 0.12);
+  background: var(--orange-dark);
+  color: #fff;
+  font-weight: 800;
+  box-shadow: 0 2px 7px rgba(45, 32, 19, 0.2);
 }
 
 .portal-table-wrap {

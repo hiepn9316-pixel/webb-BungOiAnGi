@@ -186,6 +186,17 @@ body::after {
   position: relative;
 }
 
+.nav-btn--admin {
+  border: 1px solid var(--border);
+  background: var(--cream);
+  color: var(--orange-dark);
+  font-weight: 800;
+}
+
+.nav-btn--admin.active {
+  border-color: var(--orange-dark);
+}
+
 .nav-btn:hover {
   background: var(--cream-dark);
   color: var(--orange);
