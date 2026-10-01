@@ -1,4 +1,9 @@
-const API_BASE_URL = String(import.meta.env?.VITE_API_URL || '').replace(/\/$/, '');
+export function resolveApiBaseUrl() {
+  const configured = String(import.meta.env?.VITE_API_URL ?? '').trim();
+  return configured ? configured.replace(/\/$/, '') : 'http://127.0.0.1:3000';
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 const AUTH_STORAGE_KEY = 'bung_auth_session';
 
 function readSession() {

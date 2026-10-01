@@ -64,6 +64,10 @@ function safeUser(user) {
   return publicUser;
 }
 
+function normalizeDishName(name) {
+  return String(name || '').normalize('NFC').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
 function userFromRequest(req) {
   const subject = req.claims?.sub;
   if (!subject) return null;
@@ -139,6 +143,8 @@ function handleAdminApi(req, res, user) {
     if (!idPart && req.method === 'POST') {
       const dish = validateDish(req.body || {});
       if (!dish) return res.status(400).json({ message: 'Tên món và giá hợp lệ là bắt buộc.' });
+      const duplicate = db.get('dishes').find(item => normalizeDishName(item.name) === normalizeDishName(dish.name)).value();
+      if (duplicate) return res.status(409).json({ message: 'Món ăn đã tồn tại.' });
       dish.id = nextId('dishes');
       db.get('dishes').push(dish).write();
       res.status(201).json(dish);
@@ -149,6 +155,8 @@ function handleAdminApi(req, res, user) {
     if (req.method === 'PATCH') {
       const updated = validateDish(req.body || {}, existing);
       if (!updated) return res.status(400).json({ message: 'Tên món và giá hợp lệ là bắt buộc.' });
+      const duplicate = db.get('dishes').find(item => Number(item.id) !== dishId && normalizeDishName(item.name) === normalizeDishName(updated.name)).value();
+      if (duplicate) return res.status(409).json({ message: 'Món ăn đã tồn tại.' });
       db.get('dishes').find({ id: dishId }).assign(updated).write();
       res.json(updated);
       return;

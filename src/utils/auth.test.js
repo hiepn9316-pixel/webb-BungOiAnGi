@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { resolveApiBaseUrl } from './apiClient.js';
 import { registerUser, loginUser, forgotPassword } from './auth.js';
 import { clearAuthSession, getAuthSession } from './auth.js';
 
@@ -58,6 +59,10 @@ test('register and login use server-issued JWT and customer role', async t => {
   const duplicate = await registerUser({ name: 'Nguyễn A', email: 'a@example.com', password: '123456' });
   assert.equal(duplicate.ok, false);
   assert.match(duplicate.message, /đã được đăng ký/i);
+});
+
+test('default API base URL points to the local JSON Server backend', () => {
+  assert.equal(resolveApiBaseUrl(), 'http://127.0.0.1:3000');
 });
 
 test('password reset stays disabled without email verification', async () => {

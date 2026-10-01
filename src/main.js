@@ -8,7 +8,7 @@ import './features/auth/auth.css';
 import './features/portals/portals.css';
 
 import { dishes, MOODS, BUDGETS, CATEGORIES, replaceDishes } from './data/dishes.js';
-import { filterDishes, sortDishes, getRandomDish, getCategoryLabel } from './features/filters/dishFilters.js';
+import { filterDishes, sortDishes, getRandomDish, getCategoryLabel, removeVietnameseTones } from './features/filters/dishFilters.js';
 import { QUIZ_QUESTIONS, resolveQuizMood } from './features/quiz/quizData.js';
 import { initAirdropManager } from './features/airdrop/airdropManager.js';
 import { playClick, playSelect, playBup, playWin } from './utils/uiAudio.js';
@@ -33,7 +33,6 @@ const state = {
   mood: null,
   budget: 'all',
   exploreDiet: 'all',
-  exploreTags: [],
   exploreSort: 'default',
   favorites: JSON.parse(localStorage.getItem('bung_favs') || '[]'),
   quizAnswers: {},
@@ -55,6 +54,8 @@ const state = {
   adminMessage: '',
   adminMessageType: '',
   adminEditDishId: null,
+  adminDishDraft: null,
+  adminDishSearch: '',
 };
 
 const PAGE_PATHS = {
@@ -87,6 +88,10 @@ function renderApp() {
 function renderHeader() {
   const favCount = state.favorites.length;
   const session = getAuthSession();
+  const isLoggedIn = Boolean(session?.user);
+  const isAdmin = session?.user?.role === 'admin';
+  const authLabel = isLoggedIn ? 'Tài khoản' : 'Đăng nhập';
+
   return `
   <header class="header" id="header">
     <div class="header-inner">
@@ -102,14 +107,40 @@ function renderHeader() {
         <button class="nav-btn ${state.activePage === 'explore' ? 'active' : ''}" data-page="explore" id="nav-explore">🔍 Khám phá</button>
         <button class="nav-btn ${state.activePage === 'quiz' ? 'active' : ''}" data-page="quiz" id="nav-quiz">🤔 Hôm nay ăn gì?</button>
         <button class="nav-btn ${state.activePage === 'airdrop' ? 'active' : ''}" data-page="airdrop" id="nav-airdrop">🎁 Hòm thính</button>
-        <button class="nav-btn nav-btn--admin ${state.activePage === 'admin' ? 'active' : ''}" data-page="admin" id="nav-admin">🛠️ Quản trị</button>
-        <button class="nav-btn ${state.activePage === 'auth' ? 'active' : ''}" data-page="auth" id="nav-auth">🔐 Tài khoản</button>
-        ${session?.user ? `<button class="nav-btn ${state.activePage === 'profile' ? 'active' : ''}" data-page="profile" id="nav-profile">👤 Cá nhân</button>` : ''}
       </nav>
-      <button class="fav-btn" id="fav-nav-btn">
-        ❤️ Gu của tôi
-        ${favCount > 0 ? `<span class="fav-badge" id="fav-badge">${favCount}</span>` : `<span class="fav-badge hidden" id="fav-badge">0</span>`}
-      </button>
+      <div class="header-actions">
+        <button class="fav-btn" id="fav-nav-btn">
+          ❤️ Gu của tôi
+          ${favCount > 0 ? `<span class="fav-badge" id="fav-badge">${favCount}</span>` : `<span class="fav-badge hidden" id="fav-badge">0</span>`}
+        </button>
+        <div class="header-menu">
+          <button class="header-menu-trigger" id="header-menu-trigger" aria-label="Mở menu" title="Menu">☰</button>
+          <div class="header-menu-popup hidden" id="header-menu-popup">
+            <div class="header-menu-header">
+              <span>Menu</span>
+              <button type="button" class="header-menu-close" id="header-menu-close" aria-label="Đóng menu">×</button>
+            </div>
+            <div class="header-menu-grid">
+              <button type="button" class="header-menu-item" data-header-action="auth">
+                <span class="header-menu-icon">☰</span>
+                <span class="header-menu-label">${authLabel}</span>
+              </button>
+              <button type="button" class="header-menu-item" data-header-action="volume">
+                <span class="header-menu-icon">🔊</span>
+                <span class="header-menu-label">Âm lượng</span>
+              </button>
+              ${isLoggedIn ? `<button type="button" class="header-menu-item" data-header-action="profile">
+                <span class="header-menu-icon">👤</span>
+                <span class="header-menu-label">Cá nhân</span>
+              </button>` : ''}
+              ${isAdmin ? `<button type="button" class="header-menu-item" data-header-action="admin">
+                <span class="header-menu-icon">🛠️</span>
+                <span class="header-menu-label">Quản trị</span>
+              </button>` : ''}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </header>`;
 }
@@ -137,13 +168,14 @@ function renderAuthPage() {
           <div class="avatar">👋</div>
           <h3>Xin chào, ${session.user.name}</h3>
           <p>${session.user.email}</p>
-          <div class="meta">🔐 Đã đăng nhập • Token được lưu</div>
+          <div class="meta">🔐 Đã đăng nhập • ${session.user.role === 'admin' ? 'Quản trị viên' : 'Khách hàng'}</div>
           <button class="btn-primary" id="auth-logout-btn" style="width:100%; max-width:220px;">Đăng xuất</button>
         </div>
       </div>`;
   }
 
-  const mode = state.authMode || 'login';
+  const safeMode = ['login', 'register', 'forgot'].includes(state.authMode) ? state.authMode : 'login';
+  const mode = safeMode;
   const isRegister = mode === 'register';
   const isForgot = mode === 'forgot';
 
@@ -171,14 +203,15 @@ function renderAuthPage() {
             </div>
           </div>
 
+          <div class="auth-message info" style="margin-bottom: 1rem;">📌 Tài khoản mới đăng ký sẽ có vai trò khách hàng. Admin có thể xem danh sách tại Menu → Quản trị → Người dùng.</div>
+
           <form class="auth-form" id="auth-form">
             ${isRegister ? `
               <div class="form-row">
                 <label for="auth-name">Họ và tên</label>
-                <input id="auth-name" name="name" type="text" placeholder="Nhập tên của bạn" />
+                <input id="auth-name" name="name" type="text" placeholder="Nhập họ và tên" minlength="2" required />
               </div>
             ` : ''}
-
             <div class="form-row">
               <label for="auth-email">Email</label>
               <input id="auth-email" name="email" type="email" placeholder="name@example.com" required />
@@ -187,12 +220,18 @@ function renderAuthPage() {
             ${!isForgot ? `
               <div class="form-row">
                 <label for="auth-password">Mật khẩu</label>
-                <input id="auth-password" name="password" type="password" placeholder="Nhập mật khẩu" required />
+                <div class="password-input-wrap">
+                  <input id="auth-password" name="password" type="password" placeholder="Nhập mật khẩu" required />
+                  <button type="button" class="password-toggle" data-target="auth-password" aria-label="Hiện mật khẩu">👁</button>
+                </div>
               </div>
             ` : `
               <div class="form-row">
                 <label for="auth-new-password">Mật khẩu mới</label>
-                <input id="auth-new-password" name="newPassword" type="password" placeholder="Tạo mật khẩu mới" required />
+                <div class="password-input-wrap">
+                  <input id="auth-new-password" name="newPassword" type="password" placeholder="Tạo mật khẩu mới" required />
+                  <button type="button" class="password-toggle" data-target="auth-new-password" aria-label="Hiện mật khẩu">👁</button>
+                </div>
               </div>
             `}
 
@@ -233,8 +272,8 @@ function renderProfilePage() {
       <section class="portal-panel">
         <h2>Món yêu thích đồng bộ</h2>
         ${state.profileFavorites.length
-          ? `<div class="dishes-grid">${renderDishCards(dishes.filter(dish => state.profileFavorites.includes(Number(dish.id))))}</div>`
-          : '<p class="portal-empty">Bạn chưa lưu món nào.</p>'}
+      ? `<div class="dishes-grid">${renderDishCards(dishes.filter(dish => state.profileFavorites.includes(Number(dish.id))))}</div>`
+      : '<p class="portal-empty">Bạn chưa lưu món nào.</p>'}
       </section>
       <section class="portal-panel">
         <h2>Lịch sử xem gần đây</h2>
@@ -251,6 +290,11 @@ function renderAdminPage() {
   const hotDishes = stats?.hotDishes || [];
   const maximumHotScore = Math.max(1, ...hotDishes.map(dish => dish.favorites * 2 + dish.views));
   const editingDish = state.adminDishes.find(dish => Number(dish.id) === Number(state.adminEditDishId));
+  const draftValues = state.adminDishDraft?.dishId === (editingDish ? Number(editingDish.id) : null)
+    ? state.adminDishDraft.values
+    : null;
+  const selectedCategory = draftValues?.category ?? editingDish?.category;
+  const selectedType = draftValues?.type ?? editingDish?.type ?? 'man';
 
   return `
     <section class="portal-page">
@@ -264,19 +308,19 @@ function renderAdminPage() {
         <section class="portal-panel">
           <h2>${editingDish ? 'Sửa món ăn' : 'Thêm món ăn'}</h2>
           <form id="admin-dish-form" class="portal-form-grid">
-            <div class="portal-field"><label for="admin-dish-name">Tên món</label><input id="admin-dish-name" name="name" value="${escapeHTML(editingDish?.name || '')}" required minlength="2" /></div>
-            <div class="portal-field"><label for="admin-dish-price">Giá (đ)</label><input id="admin-dish-price" name="price" type="number" min="0" value="${editingDish?.price ?? ''}" required /></div>
-            <div class="portal-field portal-field--wide"><label for="admin-dish-desc">Mô tả</label><textarea id="admin-dish-desc" name="desc">${escapeHTML(editingDish?.desc || '')}</textarea></div>
-            <div class="portal-field"><label for="admin-dish-category">Danh mục</label><select id="admin-dish-category" name="category">${CATEGORIES.filter(category => category.id !== 'all').map(category => `<option value="${category.id}" ${editingDish?.category === category.id ? 'selected' : ''}>${escapeHTML(category.name)}</option>`).join('')}</select></div>
-            <div class="portal-field"><label for="admin-dish-type">Loại</label><select id="admin-dish-type" name="type"><option value="man" ${editingDish?.type !== 'chay' ? 'selected' : ''}>Mặn</option><option value="chay" ${editingDish?.type === 'chay' ? 'selected' : ''}>Chay</option></select></div>
-            <div class="portal-field"><label for="admin-dish-calo">Calo</label><input id="admin-dish-calo" name="calo" type="number" min="0" value="${editingDish?.calo ?? 0}" /></div>
-            <div class="portal-field"><label for="admin-dish-tags">Tags (phân cách bằng dấu phẩy)</label><input id="admin-dish-tags" name="tags" value="${escapeHTML((editingDish?.tags || []).join(', '))}" /></div>
-            <div class="portal-field portal-field--wide"><label for="admin-dish-img">URL ảnh</label><input id="admin-dish-img" name="img" value="${escapeHTML(editingDish?.img || '')}" placeholder="https://..." /><input id="admin-dish-image-file" type="file" accept="image/*" /><span class="portal-message" id="image-upload-message" role="status"></span></div>
+            <div class="portal-field"><label for="admin-dish-name">Tên món</label><input id="admin-dish-name" name="name" value="${escapeHTML(draftValues?.name ?? editingDish?.name ?? '')}" required minlength="2" /><span class="portal-message" id="admin-dish-name-feedback" role="status" aria-live="polite"></span></div>
+            <div class="portal-field"><label for="admin-dish-price">Giá (đ)</label><input id="admin-dish-price" name="price" type="number" min="0" value="${draftValues?.price ?? editingDish?.price ?? ''}" required /></div>
+            <div class="portal-field portal-field--wide"><label for="admin-dish-desc">Mô tả</label><textarea id="admin-dish-desc" name="desc">${escapeHTML(draftValues?.desc ?? editingDish?.desc ?? '')}</textarea></div>
+            <div class="portal-field"><label for="admin-dish-category">Danh mục</label><select id="admin-dish-category" name="category">${CATEGORIES.filter(category => category.id !== 'all').map(category => `<option value="${category.id}" ${selectedCategory === category.id ? 'selected' : ''}>${escapeHTML(category.name)}</option>`).join('')}</select></div>
+            <div class="portal-field"><label for="admin-dish-type">Loại</label><select id="admin-dish-type" name="type"><option value="man" ${selectedType !== 'chay' ? 'selected' : ''}>Mặn</option><option value="chay" ${selectedType === 'chay' ? 'selected' : ''}>Chay</option></select></div>
+            <div class="portal-field"><label for="admin-dish-calo">Calo</label><input id="admin-dish-calo" name="calo" type="number" min="0" value="${draftValues?.calo ?? editingDish?.calo ?? 0}" /></div>
+            <div class="portal-field portal-field--wide"><label for="admin-dish-img">URL ảnh</label><input id="admin-dish-img" name="img" value="${escapeHTML(draftValues?.img ?? editingDish?.img ?? '')}" placeholder="https://..." /><input id="admin-dish-image-file" type="file" accept="image/*" /><span class="portal-message" id="image-upload-message" role="status"></span></div>
             <div class="portal-actions portal-field--wide"><button type="submit" class="portal-button portal-button--primary">${editingDish ? 'Lưu món' : 'Thêm món'}</button>${editingDish ? '<button type="button" class="portal-button" id="admin-cancel-edit">Hủy sửa</button>' : ''}</div>
           </form>
         </section>
         <section class="portal-panel"><h2>Danh sách món (${state.adminDishes.length})</h2>
-          <div class="portal-table-wrap"><table class="portal-table"><thead><tr><th>Món</th><th>Danh mục</th><th>Giá</th><th>Thao tác</th></tr></thead><tbody>${state.adminDishes.map(dish => `<tr><td><div class="portal-dish-cell">${dish.img ? `<img src="${escapeHTML(dish.img)}" alt="" loading="lazy" />` : ''}<span>${escapeHTML(dish.name)}</span></div></td><td>${escapeHTML(getCategoryLabel(dish.category))}</td><td>${formatCurrency(dish.price)}</td><td><div class="portal-actions"><button class="portal-button" type="button" data-view-dish="${dish.id}">Xem</button><button class="portal-button" type="button" data-edit-dish="${dish.id}">Sửa</button><button class="portal-button portal-button--danger" type="button" data-delete-dish="${dish.id}">Xóa</button></div></td></tr>`).join('')}</tbody></table></div>
+          <label class="portal-field" for="admin-dish-search">Tìm món muốn sửa<input id="admin-dish-search" type="search" value="${escapeHTML(state.adminDishSearch)}" placeholder="Nhập tên món..." /></label>
+          <div class="portal-table-wrap"><table class="portal-table"><thead><tr><th>Món</th><th>Danh mục</th><th>Giá</th><th>Thao tác</th></tr></thead><tbody>${state.adminDishes.map(dish => `<tr data-admin-dish-row data-search="${escapeHTML(removeVietnameseTones(dish.name))}"><td><div class="portal-dish-cell">${dish.img ? `<img src="${escapeHTML(dish.img)}" alt="" loading="lazy" />` : ''}<span>${escapeHTML(dish.name)}</span></div></td><td>${escapeHTML(getCategoryLabel(dish.category))}</td><td>${formatCurrency(dish.price)}</td><td><div class="portal-actions"><button class="portal-button" type="button" data-view-dish="${dish.id}">Xem</button><button class="portal-button" type="button" data-edit-dish="${dish.id}">Sửa</button><button class="portal-button portal-button--danger" type="button" data-delete-dish="${dish.id}">Xóa</button></div></td></tr>`).join('')}<tr id="admin-dish-search-empty" hidden><td colspan="4" class="portal-empty">Không tìm thấy món phù hợp.</td></tr></tbody></table></div>
         </section>` : `
         <section class="portal-panel">
           <h2>Tạo tài khoản</h2>
@@ -289,7 +333,7 @@ function renderAdminPage() {
           </form>
         </section>
         <section class="portal-panel"><h2>Danh sách người dùng (${state.adminUsers.length})</h2>
-          <div class="portal-table-wrap"><table class="portal-table"><thead><tr><th>Họ tên</th><th>Email</th><th>Vai trò</th><th>Thao tác</th></tr></thead><tbody>${state.adminUsers.map(user => `<tr><td>${escapeHTML(user.name || '')}</td><td>${escapeHTML(user.email)}</td><td><select aria-label="Vai trò của ${escapeHTML(user.email)}" data-user-role="${user.id}"><option value="customer" ${user.role === 'customer' ? 'selected' : ''}>Khách hàng</option><option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option></select></td><td><button class="portal-button portal-button--danger" type="button" data-delete-user="${user.id}" ${Number(user.id) === Number(getAuthSession()?.user?.id) ? 'disabled' : ''}>Xóa</button></td></tr>`).join('')}</tbody></table></div>
+          <div class="portal-table-wrap"><table class="portal-table"><thead><tr><th>Họ tên</th><th>Email</th><th>Vai trò</th><th>Thao tác</th></tr></thead><tbody>${state.adminUsers.map(user => `<tr><td><input type="text" value="${escapeHTML(user.name || '')}" minlength="2" aria-label="Họ tên của ${escapeHTML(user.email)}" data-user-name="${user.id}" /></td><td>${escapeHTML(user.email)}</td><td><select aria-label="Vai trò của ${escapeHTML(user.email)}" data-user-role="${user.id}"><option value="customer" ${user.role === 'customer' ? 'selected' : ''}>Khách hàng</option><option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option></select></td><td><div class="portal-actions"><button class="portal-button" type="button" data-save-user-name="${user.id}">Lưu</button><button class="portal-button portal-button--danger" type="button" data-delete-user="${user.id}" ${Number(user.id) === Number(getAuthSession()?.user?.id) ? 'disabled' : ''}>Xóa</button></div></td></tr>`).join('')}</tbody></table></div>
         </section>`}
       <div class="portal-metrics">
         <div class="portal-metric"><span>Người dùng</span><strong>${stats?.userCount ?? '—'}</strong></div>
@@ -300,9 +344,9 @@ function renderAdminPage() {
       <section class="portal-panel">
         <h2>Món nổi bật</h2>
         ${hotDishes.length ? `<div class="portal-chart">${hotDishes.map(dish => {
-          const score = dish.favorites * 2 + dish.views;
-          return `<div class="portal-chart-row"><span>${escapeHTML(dish.name)}</span><div class="portal-chart-track"><div class="portal-chart-bar" style="width:${Math.max(3, score / maximumHotScore * 100)}%"></div></div><strong>${score}</strong></div>`;
-        }).join('')}</div>` : '<p class="portal-empty">Chưa có dữ liệu thống kê.</p>'}
+    const score = dish.favorites * 2 + dish.views;
+    return `<div class="portal-chart-row"><span>${escapeHTML(dish.name)}</span><div class="portal-chart-track"><div class="portal-chart-bar" style="width:${Math.max(3, score / maximumHotScore * 100)}%"></div></div><strong>${score}</strong></div>`;
+  }).join('')}</div>` : '<p class="portal-empty">Chưa có dữ liệu thống kê.</p>'}
       </section>
     </section>`;
 }
@@ -382,24 +426,6 @@ function renderExplore() {
     `<button class="cat-btn ${c.id === 'all' ? 'active' : ''}" data-cat="${c.id}" id="cat-${c.id}">${c.label}</button>`
   ).join('');
 
-  const tagOptions = [
-    { val: 'cay', label: '🌶️ Cay' },
-    { val: 'no', label: '🍚 No bụng' },
-    { val: 'tiet-kiem', label: '💸 Rẻ' },
-    { val: 'ngot-ngao', label: '🍮 Ngọt' },
-    { val: 'giai-khat', label: '🧋 Mát' },
-    { val: 'thanh-mat', label: '🥗 Thanh' },
-    { val: 'dam-da', label: '🔥 Đậm đà' },
-    { val: 'dinh-duong', label: '💪 Lành' },
-    { val: 'gion-rum', label: '🍗 Giòn' },
-    { val: 'an-sang', label: '☀️ Sáng' },
-    { val: 'phobien', label: '⭐ Top' },
-    { val: 'an-vui', label: '🎉 Vui' },
-  ];
-  const tagBtns = tagOptions.map(t =>
-    `<button class="tag-chip" data-tag="${t.val}">${t.label}</button>`
-  ).join('');
-
   return `
     <div class="explore-header">
       <div class="explore-header-inner">
@@ -409,7 +435,7 @@ function renderExplore() {
         </div>
         <div class="search-bar">
           <span class="search-icon">🔍</span>
-          <input class="search-input" type="text" id="explore-search" placeholder="Tìm tên món, tag... (phở, cơm, chè...)" />
+          <input class="search-input" type="text" id="explore-search" placeholder="Tìm tên món hoặc mô tả..." />
         </div>
       </div>
     </div>
@@ -436,9 +462,6 @@ function renderExplore() {
             <option value="calo">🔥 Calories</option>
           </select>
         </div>
-      </div>
-      <div class="tag-strip-wrap">
-        <div class="tag-strip" id="tag-strip">${tagBtns}</div>
       </div>
     </div>
 
@@ -602,9 +625,6 @@ function renderDishCards(list) {
             <span>🔥 ${d.calo} kcal</span>
             <span>⏱️ ${d.time}</span>
           </div>
-          <div class="dish-tags">
-            ${(d.tags || []).slice(0, 3).map(t => `<span class="dish-tag">#${t}</span>`).join('')}
-          </div>
         </div>
       </div>`;
   }).join('');
@@ -633,7 +653,7 @@ function renderModal() {
 function openModal(dish, onRoll) {
   if (!dish) return;
   if (isAuthenticated() && getAuthSession()?.user?.role === 'customer') {
-    requestApi('/api/customer/history', { method: 'POST', body: { dishId: Number(dish.id) } }).catch(() => {});
+    requestApi('/api/customer/history', { method: 'POST', body: { dishId: Number(dish.id) } }).catch(() => { });
   }
   const overlay = document.getElementById('dish-modal');
   document.getElementById('modal-img').src = dish.img;
@@ -854,8 +874,7 @@ function updateExploreGrid() {
   let results = filterDishes(dishes, {
     categoryId: activecat,
     query,
-    diet: state.exploreDiet,
-    tags: state.exploreTags
+    diet: state.exploreDiet
   });
   results = sortDishes(results, state.exploreSort);
   const grid = document.getElementById('explore-grid');
@@ -865,7 +884,21 @@ function updateExploreGrid() {
   bindDishCards();
 }
 
+function updateAdminDishSearch() {
+  const query = removeVietnameseTones(state.adminDishSearch);
+  let visibleCount = 0;
+  document.querySelectorAll('[data-admin-dish-row]').forEach(row => {
+    const matches = row.dataset.search.includes(query);
+    row.hidden = !matches;
+    if (matches) visibleCount += 1;
+  });
+  const emptyRow = document.getElementById('admin-dish-search-empty');
+  if (emptyRow) emptyRow.hidden = visibleCount > 0;
+}
+
 function navigateTo(page, { updateUrl = true } = {}) {
+  closeModal();
+
   if (['favs', 'profile', 'admin'].includes(page) && !isAuthenticated()) {
     requireAuthentication('Vui lòng đăng nhập hoặc đăng ký để tiếp tục.', page);
     return;
@@ -990,6 +1023,7 @@ async function loadAdminDashboard(successMessage = '') {
 function requireAuthentication(message, returnPage = state.activePage) {
   if (isAuthenticated()) return true;
 
+  closeModal();
   state.authMode = 'login';
   state.authMessage = message;
   state.authMessageType = 'error';
@@ -998,6 +1032,18 @@ function requireAuthentication(message, returnPage = state.activePage) {
   renderApp();
   navigateTo('auth');
   return false;
+}
+
+function closeHeaderMenu() {
+  const popup = document.getElementById('header-menu-popup');
+  popup?.classList.add('hidden');
+}
+
+function toggleHeaderMenu(forceOpen = null) {
+  const popup = document.getElementById('header-menu-popup');
+  if (!popup) return;
+  const shouldOpen = forceOpen ?? popup.classList.contains('hidden');
+  popup.classList.toggle('hidden', !shouldOpen);
 }
 
 // ============================================================
@@ -1016,6 +1062,58 @@ function bindAll() {
     playClick();
     if (!requireAuthentication('Vui lòng đăng nhập hoặc đăng ký để xem Gu của tôi.', 'favs')) return;
     navigateTo('favs');
+  });
+
+  document.getElementById('header-menu-trigger')?.addEventListener('click', () => {
+    playClick();
+    toggleHeaderMenu();
+  });
+
+  document.getElementById('header-menu-close')?.addEventListener('click', () => {
+    closeHeaderMenu();
+  });
+
+  document.querySelectorAll('[data-header-action]').forEach(button => {
+    button.addEventListener('click', () => {
+      const action = button.dataset.headerAction;
+      closeHeaderMenu();
+      if (action === 'auth') {
+        if (!isAuthenticated()) {
+          state.authMode = 'login';
+          state.authMessage = 'Vui lòng đăng nhập hoặc đăng ký để tiếp tục.';
+          state.authMessageType = 'error';
+        }
+        navigateTo('auth');
+        return;
+      }
+      if (action === 'profile') {
+        if (!requireAuthentication('Vui lòng đăng nhập để xem cá nhân.', 'profile')) return;
+        navigateTo('profile');
+        return;
+      }
+      if (action === 'admin') {
+        if (!requireAuthentication('Vui lòng đăng nhập với tài khoản admin.', 'admin')) return;
+        if (getAuthSession()?.user?.role !== 'admin') {
+          state.profileMessage = 'Tài khoản khách hàng không được phép truy cập trang quản trị.';
+          state.profileMessageType = 'error';
+          navigateTo('profile');
+          return;
+        }
+        navigateTo('admin');
+        return;
+      }
+      if (action === 'volume') {
+        window.__bungoiangi_sound_on = !(window.__bungoiangi_sound_on ?? true);
+        button.querySelector('.header-menu-label').textContent = window.__bungoiangi_sound_on ? 'Âm lượng' : 'Tắt âm';
+        return;
+      }
+    });
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!event.target.closest('.header-menu') && !event.target.closest('.header-menu-trigger')) {
+      closeHeaderMenu();
+    }
   });
 
   document.getElementById('profile-form')?.addEventListener('submit', async event => {
@@ -1037,6 +1135,12 @@ function bindAll() {
   });
 
   document.getElementById('admin-refresh')?.addEventListener('click', () => void loadAdminDashboard());
+  document.getElementById('admin-dish-search')?.addEventListener('input', event => {
+    state.adminDishSearch = event.currentTarget.value;
+    updateAdminDishSearch();
+  });
+  updateAdminDishSearch();
+
   document.getElementById('admin-add-dish')?.addEventListener('click', () => {
     state.adminEditDishId = null;
     document.getElementById('admin-dish-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1055,8 +1159,22 @@ function bindAll() {
 
   document.getElementById('admin-cancel-edit')?.addEventListener('click', () => {
     state.adminEditDishId = null;
+    state.adminDishDraft = null;
     renderApp();
   });
+
+  const adminDishForm = document.getElementById('admin-dish-form');
+  const captureAdminDishDraft = () => {
+    if (!adminDishForm) return;
+    const formData = new FormData(adminDishForm);
+    state.adminDishDraft = {
+      dishId: state.adminEditDishId === null ? null : Number(state.adminEditDishId),
+      values: Object.fromEntries(['name', 'price', 'desc', 'category', 'type', 'calo', 'img']
+        .map(name => [name, String(formData.get(name) ?? '')])),
+    };
+  };
+  adminDishForm?.addEventListener('input', captureAdminDishDraft);
+  adminDishForm?.addEventListener('change', captureAdminDishDraft);
 
   document.getElementById('admin-dish-image-file')?.addEventListener('change', async event => {
     const file = event.currentTarget.files?.[0];
@@ -1072,11 +1190,24 @@ function bindAll() {
     try {
       const imageUrl = await uploadImageToCloudinary(file);
       document.getElementById('admin-dish-img').value = imageUrl;
+      captureAdminDishDraft();
       message.textContent = 'Ảnh đã tải lên.';
     } catch (error) {
       message.textContent = error.message;
       message.classList.add('is-error');
     }
+  });
+
+  const dishNameInput = document.getElementById('admin-dish-name');
+  const dishNameFeedback = document.getElementById('admin-dish-name-feedback');
+  dishNameInput?.addEventListener('input', () => {
+    const normalizeName = value => String(value || '').normalize('NFC').trim().replace(/\s+/g, ' ').toLowerCase();
+    const enteredName = normalizeName(dishNameInput.value);
+    const duplicate = enteredName && state.adminDishes.find(dish =>
+      Number(dish.id) !== Number(state.adminEditDishId) && normalizeName(dish.name) === enteredName
+    );
+    dishNameFeedback.textContent = duplicate ? `Món đã có: ${duplicate.name}` : '';
+    dishNameFeedback.classList.toggle('is-error', Boolean(duplicate));
   });
 
   document.getElementById('admin-dish-form')?.addEventListener('submit', async event => {
@@ -1090,7 +1221,6 @@ function bindAll() {
       type: values.type,
       diet: values.type,
       calo: Number(values.calo || 0),
-      tags: values.tags.split(',').map(tag => tag.trim()).filter(Boolean),
       img: values.img,
     };
     const editingId = state.adminEditDishId;
@@ -1100,6 +1230,7 @@ function bindAll() {
         body: dish,
       });
       state.adminEditDishId = null;
+      state.adminDishDraft = null;
       await loadAdminDashboard(editingId ? 'Đã cập nhật món ăn.' : 'Đã thêm món ăn.');
     } catch (error) {
       state.adminMessage = error.message;
@@ -1112,6 +1243,9 @@ function bindAll() {
     button.addEventListener('click', () => {
       state.adminEditDishId = Number(button.dataset.editDish);
       renderApp();
+      const nameInput = document.getElementById('admin-dish-name');
+      nameInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      nameInput?.focus({ preventScroll: true });
     });
   });
 
@@ -1164,6 +1298,28 @@ function bindAll() {
     });
   });
 
+  document.querySelectorAll('[data-save-user-name]').forEach(button => {
+    button.addEventListener('click', async () => {
+      const userId = button.dataset.saveUserName;
+      const nameInput = document.querySelector(`[data-user-name="${userId}"]`);
+      const name = String(nameInput?.value || '').trim();
+      if (name.length < 2) {
+        state.adminMessage = 'Tên phải có ít nhất 2 ký tự.';
+        state.adminMessageType = 'error';
+        renderApp();
+        return;
+      }
+      try {
+        await requestApi(`/api/admin/users/${userId}`, { method: 'PATCH', body: { name } });
+        await loadAdminDashboard('Đã cập nhật người dùng.');
+      } catch (error) {
+        state.adminMessage = error.message;
+        state.adminMessageType = 'error';
+        renderApp();
+      }
+    });
+  });
+
   document.querySelectorAll('[data-delete-user]').forEach(button => {
     button.addEventListener('click', async () => {
       if (!window.confirm('Bạn có chắc muốn xóa người dùng này?')) return;
@@ -1184,6 +1340,17 @@ function bindAll() {
       state.authMessage = '';
       state.authMessageType = '';
       renderApp();
+    });
+  });
+
+  document.querySelectorAll('.password-toggle').forEach(button => {
+    button.addEventListener('click', () => {
+      const input = document.getElementById(button.dataset.target);
+      if (!input) return;
+      const showPassword = input.type === 'password';
+      input.type = showPassword ? 'text' : 'password';
+      button.textContent = showPassword ? '🙈' : '👁';
+      button.setAttribute('aria-label', showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
     });
   });
 
@@ -1325,19 +1492,6 @@ function bindAll() {
     });
   });
 
-  // Lọc Tags (tag chips)
-  document.querySelectorAll('.tag-chip').forEach(btn => {
-    btn.addEventListener('click', () => {
-      playClick();
-      const tag = btn.dataset.tag;
-      state.exploreTags = state.exploreTags.includes(tag)
-        ? state.exploreTags.filter(item => item !== tag)
-        : [...state.exploreTags, tag];
-      btn.classList.toggle('active', state.exploreTags.includes(tag));
-      updateExploreGrid();
-    });
-  });
-
   // Sắp xếp
   document.getElementById('explore-sort')?.addEventListener('change', (e) => {
     state.exploreSort = e.target.value;
@@ -1401,6 +1555,13 @@ function bindDishCards() {
       const saved = state.favorites.includes(id);
       btn.textContent = saved ? '❤️' : '🤍';
       btn.classList.toggle('saved', saved);
+      if (state.activePage === 'favs' && !saved) {
+        const favPage = document.getElementById('page-favs');
+        if (favPage) {
+          favPage.innerHTML = renderFavs();
+          bindDishCards();
+        }
+      }
       if (saved) burst(e.clientX, e.clientY, 30);
     });
   });
