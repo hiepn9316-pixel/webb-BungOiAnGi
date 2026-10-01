@@ -1,5 +1,6 @@
 import { AUTH_SESSION_EXPIRED_EVENT } from './apiClient.js';
 import { isSupabaseConfigured, supabase } from './supabase.js';
+import { loadSupabaseProfile, updateSupabaseProfileName } from './supabaseData.js';
 
 const AUTH_KEY = 'bung_auth_session';
 const DEFAULT_SESSION_DURATION = 1000 * 60 * 60;
@@ -31,14 +32,14 @@ function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
 }
 
-function sanitizeUser(user) {
+function sanitizeUser(user, profile = null) {
   if (!user) return null;
   return {
     id: user.id,
-    name: user.user_metadata?.name || user.name || '',
+    name: profile?.name || user.user_metadata?.name || user.name || '',
     email: user.email,
-    role: 'customer',
-    createdAt: user.created_at || user.createdAt || new Date().toISOString(),
+    role: profile?.role || 'customer',
+    createdAt: profile?.created_at || user.created_at || user.createdAt || new Date().toISOString(),
   };
 }
 
@@ -95,11 +96,11 @@ export function getAuthSession() {
   return session;
 }
 
-export function setAuthSession(user, token) {
+export function setAuthSession(user, token, profile = null) {
   const expiresAt = tokenExpiry(token) || Date.now() + DEFAULT_SESSION_DURATION;
   const storage = getStorage();
   storage.setItem(AUTH_KEY, JSON.stringify({
-    user: sanitizeUser(user),
+    user: sanitizeUser(user, profile),
     token,
     expiresAt,
     provider: 'supabase',
@@ -107,12 +108,20 @@ export function setAuthSession(user, token) {
   scheduleSessionExpiry(expiresAt, token);
 }
 
-function syncSupabaseSession(session) {
+async function syncSupabaseSession(session) {
   if (!session?.access_token || !session.user) {
     clearAuthSession();
     return;
   }
   setAuthSession(session.user, session.access_token);
+  try {
+    const profile = await loadSupabaseProfile(session.user.id);
+    if (getAuthSession()?.token === session.access_token) {
+      setAuthSession(session.user, session.access_token, profile);
+    }
+  } catch (error) {
+    console.error('Không thể tải hồ sơ Supabase:', error.message);
+  }
 }
 
 export async function initializeAuth() {
@@ -123,13 +132,18 @@ export async function initializeAuth() {
 
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
-  syncSupabaseSession(data.session);
+  if (data.session) {
+    const profile = await loadSupabaseProfile(data.session.user.id);
+    setAuthSession(data.session.user, data.session.access_token, profile);
+  } else {
+    clearAuthSession();
+  }
   return Boolean(data.session);
 }
 
 if (supabase) {
   supabase.auth.onAuthStateChange((_event, session) => {
-    syncSupabaseSession(session);
+    queueMicrotask(() => { void syncSupabaseSession(session); });
   });
 }
 
@@ -208,10 +222,12 @@ export async function apiRegister({ name, email, password }) {
     });
     if (signUpError) throw signUpError;
 
-    const user = sanitizeUser(data.user);
+    const user = data.user ? sanitizeUser(data.user) : null;
     if (data.session) {
-      syncSupabaseSession(data.session);
-      return { ok: true, token: data.session.access_token, user, message: 'Đăng ký thành công! Bạn đã được đăng nhập tự động.' };
+      const profile = await loadSupabaseProfile(data.user.id);
+      setAuthSession(data.user, data.session.access_token, profile);
+      const authenticatedUser = sanitizeUser(data.user, profile);
+      return { ok: true, token: data.session.access_token, user: authenticatedUser, message: 'Đăng ký thành công! Bạn đã được đăng nhập tự động.' };
     }
     return {
       ok: true,
@@ -241,8 +257,9 @@ export async function apiLogin({ email, password }) {
     });
     if (signInError) throw signInError;
 
-    const user = sanitizeUser(data.user);
-    syncSupabaseSession(data.session);
+    const profile = await loadSupabaseProfile(data.user.id);
+    const user = sanitizeUser(data.user, profile);
+    setAuthSession(data.user, data.session.access_token, profile);
     return { ok: true, token: data.session.access_token, user, message: 'Đăng nhập thành công.' };
   } catch (requestError) {
     const message = getRequestFailureMessage(requestError, 'Email hoặc mật khẩu không đúng.');
@@ -258,15 +275,12 @@ export async function apiForgotPassword() {
 }
 
 export async function updateProfileName(name) {
-  if (!supabase) throw new Error('Chưa cấu hình Supabase.');
   const normalizedName = String(name || '').trim();
   if (normalizedName.length < 2) throw new Error('Tên người dùng phải có ít nhất 2 ký tự.');
 
-  const { data, error } = await supabase.auth.updateUser({ data: { name: normalizedName } });
-  if (error) throw error;
-  const user = sanitizeUser(data.user);
+  const user = await updateSupabaseProfileName(normalizedName);
   const session = getAuthSession();
-  if (session?.token) setAuthSession(user, session.token);
+  if (session?.token) setAuthSession(session.user, session.token, user);
   return user;
 }
 
