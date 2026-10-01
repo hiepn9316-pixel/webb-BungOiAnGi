@@ -21,7 +21,7 @@ import {
   renderNearbyMap,
   serviceSearchUrl
 } from './features/nearby/nearbyPlaces.js';
-import { apiRegister, apiLogin, apiForgotPassword, getAuthSession, logout } from './utils/auth.js';
+import { apiRegister, apiLogin, apiForgotPassword, getAuthSession, isAuthenticated, logout } from './utils/auth.js';
 
 // ============================================================
 // STATE QUẢN LÝ ỨNG DỤNG
@@ -40,6 +40,7 @@ const state = {
   authMode: 'login',
   authMessage: '',
   authMessageType: '',
+  authReturnPage: null,
 };
 
 // ============================================================
@@ -67,11 +68,11 @@ function renderHeader() {
         </span>
       </a>
       <nav class="nav" id="main-nav">
-        <button class="nav-btn active" data-page="home" id="nav-home">🏠 Trang chủ</button>
-        <button class="nav-btn" data-page="explore" id="nav-explore">🔍 Khám phá</button>
-        <button class="nav-btn" data-page="quiz" id="nav-quiz">🤔 Hôm nay ăn gì?</button>
-        <button class="nav-btn" data-page="airdrop" id="nav-airdrop">🎁 Hòm thính</button>
-        <button class="nav-btn" data-page="auth" id="nav-auth">🔐 Tài khoản</button>
+        <button class="nav-btn ${state.activePage === 'home' ? 'active' : ''}" data-page="home" id="nav-home">🏠 Trang chủ</button>
+        <button class="nav-btn ${state.activePage === 'explore' ? 'active' : ''}" data-page="explore" id="nav-explore">🔍 Khám phá</button>
+        <button class="nav-btn ${state.activePage === 'quiz' ? 'active' : ''}" data-page="quiz" id="nav-quiz">🤔 Hôm nay ăn gì?</button>
+        <button class="nav-btn ${state.activePage === 'airdrop' ? 'active' : ''}" data-page="airdrop" id="nav-airdrop">🎁 Hòm thính</button>
+        <button class="nav-btn ${state.activePage === 'auth' ? 'active' : ''}" data-page="auth" id="nav-auth">🔐 Tài khoản</button>
       </nav>
       <button class="fav-btn" id="fav-nav-btn">
         ❤️ Gu của tôi
@@ -84,12 +85,12 @@ function renderHeader() {
 function renderPages() {
   return `
     <main>
-      <div id="page-home" class="page active">${renderHome()}</div>
-      <div id="page-explore" class="page">${renderExplore()}</div>
-      <div id="page-quiz" class="page">${renderQuiz()}</div>
-      <div id="page-airdrop" class="page"><div id="airdrop-container"></div></div>
-      <div id="page-auth" class="page">${renderAuthPage()}</div>
-      <div id="page-favs" class="page">${renderFavs()}</div>
+      <div id="page-home" class="page ${state.activePage === 'home' ? 'active' : ''}">${renderHome()}</div>
+      <div id="page-explore" class="page ${state.activePage === 'explore' ? 'active' : ''}">${renderExplore()}</div>
+      <div id="page-quiz" class="page ${state.activePage === 'quiz' ? 'active' : ''}">${renderQuiz()}</div>
+      <div id="page-airdrop" class="page ${state.activePage === 'airdrop' ? 'active' : ''}"><div id="airdrop-container"></div></div>
+      <div id="page-auth" class="page ${state.activePage === 'auth' ? 'active' : ''}">${renderAuthPage()}</div>
+      <div id="page-favs" class="page ${state.activePage === 'favs' ? 'active' : ''}">${renderFavs()}</div>
     </main>`;
 }
 
@@ -601,6 +602,7 @@ function renderNearbyPanel(dish, panel = document.getElementById('modal-nearby-p
   });
 
   panel.querySelector(`#${ids.locate}`)?.addEventListener('click', async () => {
+    if (!requireAuthentication('Vui lòng đăng nhập hoặc đăng ký trước khi tìm địa chỉ quán ăn.')) return;
     const radiusKm = Number(panel.querySelector(`#${ids.radius}`)?.value || 5);
     status.textContent = 'Đang xin quyền GPS…';
     resultsElement.innerHTML = '';
@@ -647,6 +649,7 @@ function renderNearbyPanel(dish, panel = document.getElementById('modal-nearby-p
 
   panel.querySelectorAll('[data-service]').forEach(button => {
     button.addEventListener('click', () => {
+      if (!requireAuthentication('Vui lòng đăng nhập hoặc đăng ký trước khi tìm địa chỉ món ăn.')) return;
       const query = dish.name;
       const service = button.dataset.service;
       recordServiceClick({ service, dishId: dish.id, dishName: query });
@@ -667,10 +670,13 @@ function formatDistance(distanceKm) {
 }
 
 function toggleFav(id) {
+  if (!requireAuthentication('Vui lòng đăng nhập hoặc đăng ký để lưu món vào Gu của tôi.')) return false;
+
   const idx = state.favorites.indexOf(id);
   if (idx >= 0) state.favorites.splice(idx, 1);
   else state.favorites.push(id);
   localStorage.setItem('bung_favs', JSON.stringify(state.favorites));
+  return true;
 }
 
 function updateFavBadge() {
@@ -745,6 +751,19 @@ function navigateTo(page) {
   }
 }
 
+function requireAuthentication(message, returnPage = state.activePage) {
+  if (isAuthenticated()) return true;
+
+  state.authMode = 'login';
+  state.authMessage = message;
+  state.authMessageType = 'error';
+  state.authReturnPage = returnPage;
+  state.activePage = 'auth';
+  renderApp();
+  navigateTo('auth');
+  return false;
+}
+
 // ============================================================
 // GẮN SỰ KIỆN TƯƠNG TÁC (BIND EVENTS)
 // ============================================================
@@ -759,6 +778,7 @@ function bindAll() {
 
   document.getElementById('fav-nav-btn')?.addEventListener('click', () => {
     playClick();
+    if (!requireAuthentication('Vui lòng đăng nhập hoặc đăng ký để xem Gu của tôi.', 'favs')) return;
     navigateTo('favs');
   });
 
@@ -795,12 +815,15 @@ function bindAll() {
     state.authMessageType = result.ok ? 'success' : 'error';
 
     if (result.ok) {
-      if (state.authMode === 'forgot') {
+      const isPasswordReset = state.authMode === 'forgot';
+      if (isPasswordReset) {
         state.authMode = 'login';
       }
+      const destination = isPasswordReset ? 'auth' : (state.authReturnPage || 'home');
+      state.authReturnPage = null;
       setTimeout(() => {
         renderApp();
-        navigateTo('home');
+        navigateTo(destination);
       }, 500);
     } else {
       renderApp();
@@ -976,7 +999,7 @@ function bindDishCards() {
       e.stopPropagation();
       playSelect();
       const id = parseInt(btn.dataset.fav);
-      toggleFav(id);
+      if (!toggleFav(id)) return;
       updateFavBadge();
       const saved = state.favorites.includes(id);
       btn.textContent = saved ? '❤️' : '🤍';
