@@ -22,6 +22,11 @@ Tai khoan admin duoc tao lan dau khi API khoi dong. Neu DB da ton tai, hay xoa D
 
 Frontend co the tro toi API host rieng bang `VITE_API_URL`. De dong bo du lieu giua thiet bi, deploy API va DB tren host co persistent storage; JSON Server local chi luu vao file may dang chay.
 
+## Kiem thu cac luong bao mat va lien ket
+
+- `npm test` kiem tra API Admin voi request an danh/tai khoan customer, tu choi quyen GPS, URL dich vu tren iOS/Android/PC va dang xuat khi JWT het han hoac API tra ve 401.
+- GrabFood va ShopeeFood duoc mo bang HTTPS universal-link fallback. Viec he dieu hanh chuyen tiep sang app native phu thuoc app da cai va cau hinh universal/app links cua nha cung cap; can xac nhan them tren iPhone va Android that. Tren PC, link mo trang web dich vu.
+
 ## Cloudinary
 
 Tao unsigned upload preset gioi han dinh dang va kich thuoc anh trong Cloudinary, sau do khai bao `VITE_CLOUDINARY_CLOUD_NAME` va `VITE_CLOUDINARY_UPLOAD_PRESET`. Khong dat API secret Cloudinary trong frontend.

@@ -77,6 +77,11 @@ test('roles protect admin APIs and customer data is scoped to its owner', { time
   const anonymousStats = await jsonRequest(`${baseUrl}/660/api/admin/stats`);
   assert.equal(anonymousStats.response.status, 401);
 
+  for (const resource of ['stats', 'dishes', 'users']) {
+    const response = await jsonRequest(`${baseUrl}/660/api/admin/${resource}`);
+    assert.equal(response.response.status, 401, `Anonymous GET /admin/${resource} must be rejected.`);
+  }
+
   const adminLogin = await jsonRequest(`${baseUrl}/login`, {
     method: 'POST',
     body: { email: 'admin@test.local', password: 'SecureAdmin123!' },
@@ -116,6 +121,28 @@ test('roles protect admin APIs and customer data is scoped to its owner', { time
 
   const forbiddenStats = await jsonRequest(`${baseUrl}/660/api/admin/stats`, { token: customerToken });
   assert.equal(forbiddenStats.response.status, 403);
+
+  for (const resource of ['stats', 'dishes', 'users']) {
+    const response = await jsonRequest(`${baseUrl}/660/api/admin/${resource}`, { token: customerToken });
+    assert.equal(response.response.status, 403, `Customer GET /admin/${resource} must be forbidden.`);
+  }
+
+  const forbiddenAdminMutations = [
+    { path: '/660/api/admin/dishes', method: 'POST', body: { name: 'Không được tạo', price: 1 } },
+    { path: '/660/api/admin/dishes/1', method: 'PATCH', body: { name: 'Không được sửa' } },
+    { path: '/660/api/admin/dishes/1', method: 'DELETE' },
+    { path: '/660/api/admin/users', method: 'POST', body: { name: 'Không được tạo', email: 'forbidden@test.local', password: 'Customer123!' } },
+    { path: '/660/api/admin/users/1', method: 'PATCH', body: { role: 'admin' } },
+    { path: '/660/api/admin/users/1', method: 'DELETE' },
+  ];
+  for (const request of forbiddenAdminMutations) {
+    const response = await jsonRequest(`${baseUrl}${request.path}`, {
+      token: customerToken,
+      method: request.method,
+      body: request.body,
+    });
+    assert.equal(response.response.status, 403, `Customer ${request.method} ${request.path} must be forbidden.`);
+  }
 
   const syncedFavorites = await jsonRequest(`${baseUrl}/660/api/customer/favorites`, {
     token: customerToken,

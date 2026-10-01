@@ -17,6 +17,7 @@ export function resolveApiBaseUrl(configuredValue = import.meta.env?.VITE_API_UR
 
 const API_BASE_URL = resolveApiBaseUrl();
 const AUTH_STORAGE_KEY = 'bung_auth_session';
+export const AUTH_SESSION_EXPIRED_EVENT = 'bung:auth-session-expired';
 
 function readSession() {
   try {
@@ -57,6 +58,14 @@ export async function requestApi(path, { method = 'GET', body, auth = true, sign
   }
 
   if (!response.ok) {
+    if (response.status === 401 && auth) {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem(AUTH_STORAGE_KEY);
+      } else if (globalThis.__bungoiangi_store__) {
+        delete globalThis.__bungoiangi_store__[AUTH_STORAGE_KEY];
+      }
+      globalThis.window?.dispatchEvent(new Event(AUTH_SESSION_EXPIRED_EVENT));
+    }
     const message = typeof result === 'string' ? result : result?.message;
     throw new Error(message || `Yêu cầu thất bại (${response.status}).`);
   }

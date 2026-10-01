@@ -22,7 +22,7 @@ import {
   renderNearbyMap,
   serviceSearchUrl
 } from './features/nearby/nearbyPlaces.js';
-import { apiRegister, apiLogin, apiForgotPassword, getAuthSession, isAuthenticated, logout, setAuthSession } from './utils/auth.js';
+import { AUTH_SESSION_EXPIRED_EVENT, apiRegister, apiLogin, apiForgotPassword, getAuthSession, isAuthenticated, logout, setAuthSession } from './utils/auth.js';
 import { requestApi, uploadImageToCloudinary } from './utils/apiClient.js';
 
 // ============================================================
@@ -1568,6 +1568,15 @@ function bindDishCards() {
 }
 
 // Khởi chạy ứng dụng
+window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, () => {
+  if (state.activePage === 'auth') return;
+  state.authMode = 'login';
+  state.authMessage = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+  state.authMessageType = 'error';
+  state.authReturnPage = null;
+  renderApp();
+  navigateTo('auth');
+});
 renderApp();
 window.addEventListener('popstate', () => navigateTo(pageForPath(window.location.pathname), { updateUrl: false }));
 const initialPage = pageForPath(window.location.pathname);
