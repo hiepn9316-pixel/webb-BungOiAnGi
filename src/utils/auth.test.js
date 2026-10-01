@@ -65,3 +65,18 @@ test('password reset stays disabled without email verification', async () => {
   assert.equal(result.ok, false);
   assert.match(result.message, /xác minh email/i);
 });
+
+test('login surfaces backend connection errors clearly', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    throw new Error('Failed to fetch');
+  };
+
+  try {
+    const result = await loginUser({ email: 'a@example.com', password: '123456' });
+    assert.equal(result.ok, false);
+    assert.match(result.message, /không thể kết nối|máy chủ|API/i);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

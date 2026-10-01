@@ -94,6 +94,22 @@ export async function forgotPassword(data) {
   return apiForgotPassword(data);
 }
 
+function getRequestFailureMessage(error, fallback = 'Thao tác không thành công. Vui lòng thử lại.') {
+  const message = String(error?.message || '').trim();
+  if (!message) return fallback;
+
+  const lower = message.toLowerCase();
+  if (/already exists|email.*đã được đăng ký|email.*đã tồn tại/i.test(message)) {
+    return 'Email này đã được đăng ký.';
+  }
+
+  if (/failed to fetch|network|load failed|fetch failed|connection|timeout|ecconnrefused|api.*unavailable|not connected/i.test(lower)) {
+    return 'Không thể kết nối đến máy chủ API. Hãy khởi động backend và thử lại.';
+  }
+
+  return message;
+}
+
 export async function apiRegister({ name, email, password }) {
   const error = validateAuthInput({ name, email, password });
   if (error) {
@@ -110,10 +126,7 @@ export async function apiRegister({ name, email, password }) {
     setAuthSession(user, result.accessToken);
     return { ok: true, token: result.accessToken, user, message: 'Đăng ký thành công! Bạn đã được đăng nhập tự động.' };
   } catch (requestError) {
-    const message = /already exists/i.test(requestError.message)
-      ? 'Email này đã được đăng ký.'
-      : requestError.message;
-    return { ok: false, message };
+    return { ok: false, message: getRequestFailureMessage(requestError, 'Đăng ký thất bại. Vui lòng thử lại.') };
   }
 }
 
@@ -132,8 +145,9 @@ export async function apiLogin({ email, password }) {
     const user = sanitizeUser(result.user);
     setAuthSession(user, result.accessToken);
     return { ok: true, token: result.accessToken, user, message: 'Đăng nhập thành công.' };
-  } catch {
-    return { ok: false, message: 'Email hoặc mật khẩu không đúng.' };
+  } catch (requestError) {
+    const message = getRequestFailureMessage(requestError, 'Email hoặc mật khẩu không đúng.');
+    return { ok: false, message };
   }
 }
 
