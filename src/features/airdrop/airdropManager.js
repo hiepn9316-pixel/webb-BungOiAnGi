@@ -25,15 +25,17 @@ let excludedIds = new Set();
 let containerEl = null;
 let dishesData = [];
 let getFavoritesFn = () => [];
-let toggleFavoriteFn = () => {};
-let openModalFn = () => {};
+let toggleFavoriteFn = () => { };
+let openModalFn = () => { };
+let mountNearbyPanelFn = () => { };
 
-export function initAirdropManager(container, dishes, getFavorites, toggleFavorite, openModal) {
+export function initAirdropManager(container, dishes, getFavorites, toggleFavorite, openModal, mountNearbyPanel) {
   containerEl = container;
   dishesData = dishes || [];
   getFavoritesFn = getFavorites || (() => []);
-  toggleFavoriteFn = toggleFavorite || (() => {});
-  openModalFn = openModal || (() => {});
+  toggleFavoriteFn = toggleFavorite || (() => { });
+  openModalFn = openModal || (() => { });
+  mountNearbyPanelFn = mountNearbyPanel || (() => { });
 
   renderAirdropState();
 }
@@ -125,6 +127,11 @@ export function renderAirdropState() {
       renderAirdropState();
     }
   });
+
+  if (airdropPhase === AIRDROP_PHASE.REVEALED && currentDish) {
+    const nearbyHost = containerEl.querySelector('.airdrop-nearby-host');
+    if (nearbyHost) mountNearbyPanelFn(currentDish, nearbyHost);
+  }
 }
 
 function handleLaunch() {

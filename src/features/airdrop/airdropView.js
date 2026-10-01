@@ -1,4 +1,5 @@
 import { normalizeCategory } from '../filters/dishFilters.js';
+import { formatCurrency } from '../../utils/formatCurrency.js';
 
 /** Các giai đoạn của chuỗi sự kiện hòm thính */
 export const AIRDROP_PHASE = {
@@ -42,11 +43,6 @@ export const BUDGET_GROUPS = [
 
 function foodImageFallback(alt) {
   return 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&q=80';
-}
-
-function formatCurrency(price) {
-  if (!price && price !== 0) return '0K';
-  return `${(price / 1000).toFixed(0)}K`;
 }
 
 function getCategoryName(catId) {
@@ -264,6 +260,7 @@ function renderReward(dish, isFavorite, isExcluded) {
           </div>
         </div>
       </div>
+      <div class="airdrop-nearby-host"></div>
     </article>
   `;
 }
