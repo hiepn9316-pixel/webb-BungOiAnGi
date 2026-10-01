@@ -135,12 +135,11 @@ export function filterDishes(targetOrMood, maybeBudgetId = 'all', maybeCategoryI
       }
     }
 
-    // 5. Lọc theo từ khóa tìm kiếm (bỏ dấu tiếng Việt, tìm theo tên, mô tả, thẻ tag)
+    // 5. Lọc theo từ khóa tìm kiếm (bỏ dấu tiếng Việt, tìm theo tên và mô tả)
     if (cleanQuery) {
       const nameMatch = removeVietnameseTones(dish.name).includes(cleanQuery);
       const descMatch = removeVietnameseTones(dish.desc || '').includes(cleanQuery);
-      const tagMatch = (dish.tags || []).some(t => removeVietnameseTones(t).includes(cleanQuery));
-      if (!nameMatch && !descMatch && !tagMatch) {
+      if (!nameMatch && !descMatch) {
         return false;
       }
     }
