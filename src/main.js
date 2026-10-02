@@ -24,6 +24,19 @@ import {
 } from './features/nearby/nearbyPlaces.js';
 import { AUTH_SESSION_EXPIRED_EVENT, apiRegister, apiLogin, apiForgotPassword, getAuthSession, initializeAuth, isAuthenticated, logout, updateProfileName } from './utils/auth.js';
 import { requestApi, uploadImageToCloudinary } from './utils/apiClient.js';
+import {
+  createSupabaseUser,
+  deleteSupabaseDish,
+  deleteSupabaseUser,
+  fetchSupabaseDishes,
+  loadAdminData,
+  loadSupabaseFavorites,
+  loadSupabaseProfileActivity,
+  recordSupabaseHistory,
+  saveSupabaseDish,
+  saveSupabaseFavorites,
+  saveSupabaseProfile,
+} from './utils/supabaseData.js';
 
 // ============================================================
 // STATE QUẢN LÝ ỨNG DỤNG
@@ -334,7 +347,7 @@ function renderAdminPage() {
           </form>
         </section>
         <section class="portal-panel"><h2>Danh sách người dùng (${state.adminUsers.length})</h2>
-          <div class="portal-table-wrap"><table class="portal-table"><thead><tr><th>Họ tên</th><th>Email</th><th>Vai trò</th><th>Thao tác</th></tr></thead><tbody>${state.adminUsers.map(user => `<tr><td><input type="text" value="${escapeHTML(user.name || '')}" minlength="2" aria-label="Họ tên của ${escapeHTML(user.email)}" data-user-name="${user.id}" /></td><td>${escapeHTML(user.email)}</td><td><select aria-label="Vai trò của ${escapeHTML(user.email)}" data-user-role="${user.id}"><option value="customer" ${user.role === 'customer' ? 'selected' : ''}>Khách hàng</option><option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option></select></td><td><div class="portal-actions"><button class="portal-button" type="button" data-save-user-name="${user.id}">Lưu</button><button class="portal-button portal-button--danger" type="button" data-delete-user="${user.id}" ${Number(user.id) === Number(getAuthSession()?.user?.id) ? 'disabled' : ''}>Xóa</button></div></td></tr>`).join('')}</tbody></table></div>
+          <div class="portal-table-wrap"><table class="portal-table"><thead><tr><th>Họ tên</th><th>Email</th><th>Vai trò</th><th>Thao tác</th></tr></thead><tbody>${state.adminUsers.map(user => `<tr><td><input type="text" value="${escapeHTML(user.name || '')}" minlength="2" aria-label="Họ tên của ${escapeHTML(user.email)}" data-user-name="${user.id}" /></td><td>${escapeHTML(user.email)}</td><td><select aria-label="Vai trò của ${escapeHTML(user.email)}" data-user-role="${user.id}"><option value="customer" ${user.role === 'customer' ? 'selected' : ''}>Khách hàng</option><option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option></select></td><td><div class="portal-actions"><button class="portal-button" type="button" data-save-user-name="${user.id}">Lưu</button><button class="portal-button portal-button--danger" type="button" data-delete-user="${user.id}" ${String(user.id) === String(getAuthSession()?.user?.id) ? 'disabled' : ''}>Xóa</button></div></td></tr>`).join('')}</tbody></table></div>
         </section>`}
       <div class="portal-metrics">
         <div class="portal-metric"><span>Người dùng</span><strong>${stats?.userCount ?? '—'}</strong></div>
@@ -653,7 +666,9 @@ function renderModal() {
 
 function openModal(dish, onRoll) {
   if (!dish) return;
-  if (isAuthenticated() && getAuthSession()?.provider !== 'supabase' && getAuthSession()?.user?.role === 'customer') {
+  if (getAuthSession()?.provider === 'supabase') {
+    void recordSupabaseHistory(Number(dish.id)).catch(error => console.error('Không thể lưu lịch sử xem món:', error.message));
+  } else if (isAuthenticated() && getAuthSession()?.user?.role === 'customer') {
     requestApi('/api/customer/history', { method: 'POST', body: { dishId: Number(dish.id) } }).catch(() => { });
   }
   const overlay = document.getElementById('dish-modal');
@@ -836,6 +851,10 @@ function toggleFav(id) {
   localStorage.setItem('bung_favs', JSON.stringify(state.favorites));
   if (getAuthSession()?.provider === 'supabase') {
     state.profileFavorites = [...state.favorites];
+    void saveSupabaseFavorites(state.favorites).catch(error => {
+      state.profileMessage = error.message;
+      state.profileMessageType = 'error';
+    });
     return true;
   }
 
@@ -959,6 +978,19 @@ function navigateTo(page, { updateUrl = true } = {}) {
 }
 
 async function loadRemoteDishes() {
+  if (getAuthSession()?.provider === 'supabase' || import.meta.env?.VITE_SUPABASE_URL) {
+    try {
+      const remoteDishes = await fetchSupabaseDishes();
+      if (remoteDishes.length) {
+        replaceDishes(remoteDishes);
+        renderApp();
+      }
+    } catch (error) {
+      console.error('Không thể đồng bộ món từ Supabase:', error.message);
+    }
+    return;
+  }
+
   try {
     const remoteDishes = await requestApi('/api/dishes', { auth: false });
     if (Array.isArray(remoteDishes) && remoteDishes.length) {
@@ -973,10 +1005,19 @@ async function loadRemoteDishes() {
 async function loadProfileData() {
   const session = getAuthSession();
   if (session?.provider === 'supabase') {
-    state.profile = session.user;
-    state.profileFavorites = [...state.favorites];
-    state.profileHistory = [];
-    if (state.activePage === 'profile') renderApp();
+    try {
+      const activity = await loadSupabaseProfileActivity(session.user.id);
+      state.profile = session.user;
+      state.profileFavorites = activity.favorites;
+      state.profileHistory = activity.history;
+      state.favorites = activity.favorites;
+      localStorage.setItem('bung_favs', JSON.stringify(state.favorites));
+      if (state.activePage === 'profile') renderApp();
+    } catch (error) {
+      state.profileMessage = error.message;
+      state.profileMessageType = 'error';
+      if (state.activePage === 'profile') renderApp();
+    }
     return;
   }
 
@@ -1000,7 +1041,23 @@ async function loadProfileData() {
 }
 
 async function loadCustomerFavorites() {
-  if (getAuthSession()?.provider === 'supabase') return;
+  if (getAuthSession()?.provider === 'supabase') {
+    try {
+      state.favorites = await loadSupabaseFavorites();
+      state.profileFavorites = [...state.favorites];
+      localStorage.setItem('bung_favs', JSON.stringify(state.favorites));
+      updateFavBadge();
+      if (state.activePage === 'favs') {
+        const favPage = document.getElementById('page-favs');
+        if (favPage) favPage.innerHTML = renderFavs();
+        bindDishCards();
+      }
+    } catch (error) {
+      state.profileMessage = error.message;
+      state.profileMessageType = 'error';
+    }
+    return;
+  }
 
   try {
     const result = await requestApi('/api/customer/favorites');
@@ -1019,15 +1076,23 @@ async function loadCustomerFavorites() {
 
 async function loadAdminDashboard(successMessage = '') {
   try {
-    const [stats, adminDishes, users] = await Promise.all([
-      requestApi('/api/admin/stats'),
-      requestApi('/api/admin/dishes'),
-      requestApi('/api/admin/users'),
-    ]);
-    state.adminStats = stats;
-    state.adminDishes = adminDishes;
-    state.adminUsers = users;
-    replaceDishes(adminDishes);
+    if (getAuthSession()?.provider === 'supabase') {
+      const adminData = await loadAdminData();
+      state.adminStats = adminData.stats;
+      state.adminDishes = adminData.dishes;
+      state.adminUsers = adminData.users;
+      replaceDishes(adminData.dishes);
+    } else {
+      const [stats, adminDishes, users] = await Promise.all([
+        requestApi('/api/admin/stats'),
+        requestApi('/api/admin/dishes'),
+        requestApi('/api/admin/users'),
+      ]);
+      state.adminStats = stats;
+      state.adminDishes = adminDishes;
+      state.adminUsers = users;
+      replaceDishes(adminDishes);
+    }
     state.adminMessage = successMessage;
     state.adminMessageType = successMessage ? 'success' : '';
   } catch (error) {
@@ -1242,10 +1307,14 @@ function bindAll() {
     };
     const editingId = state.adminEditDishId;
     try {
-      await requestApi(editingId ? `/api/admin/dishes/${editingId}` : '/api/admin/dishes', {
-        method: editingId ? 'PATCH' : 'POST',
-        body: dish,
-      });
+      if (getAuthSession()?.provider === 'supabase') {
+        await saveSupabaseDish(dish, editingId);
+      } else {
+        await requestApi(editingId ? `/api/admin/dishes/${editingId}` : '/api/admin/dishes', {
+          method: editingId ? 'PATCH' : 'POST',
+          body: dish,
+        });
+      }
       state.adminEditDishId = null;
       state.adminDishDraft = null;
       await loadAdminDashboard(editingId ? 'Đã cập nhật món ăn.' : 'Đã thêm món ăn.');
@@ -1277,7 +1346,11 @@ function bindAll() {
     button.addEventListener('click', async () => {
       if (!window.confirm('Bạn có chắc muốn xóa món này?')) return;
       try {
-        await requestApi(`/api/admin/dishes/${button.dataset.deleteDish}`, { method: 'DELETE' });
+        if (getAuthSession()?.provider === 'supabase') {
+          await deleteSupabaseDish(Number(button.dataset.deleteDish));
+        } else {
+          await requestApi(`/api/admin/dishes/${button.dataset.deleteDish}`, { method: 'DELETE' });
+        }
         await loadAdminDashboard('Đã xóa món ăn.');
       } catch (error) {
         state.adminMessage = error.message;
@@ -1291,7 +1364,11 @@ function bindAll() {
     event.preventDefault();
     const values = Object.fromEntries(new FormData(event.currentTarget));
     try {
-      await requestApi('/api/admin/users', { method: 'POST', body: values });
+      if (getAuthSession()?.provider === 'supabase') {
+        await createSupabaseUser(values);
+      } else {
+        await requestApi('/api/admin/users', { method: 'POST', body: values });
+      }
       await loadAdminDashboard('Đã tạo người dùng.');
     } catch (error) {
       state.adminMessage = error.message;
@@ -1303,9 +1380,21 @@ function bindAll() {
   document.querySelectorAll('[data-user-role]').forEach(select => {
     select.addEventListener('change', async () => {
       try {
-        await requestApi(`/api/admin/users/${select.dataset.userRole}`, {
-          method: 'PATCH', body: { role: select.value },
-        });
+        if (getAuthSession()?.provider === 'supabase') {
+          await saveSupabaseProfile({ id: select.dataset.userRole, role: select.value });
+          if (String(select.dataset.userRole) === String(getAuthSession()?.user?.id) && select.value !== 'admin') {
+            await logout();
+            state.adminMessage = 'Vai trò của bạn đã bị thay đổi; vui lòng đăng nhập lại.';
+            state.adminMessageType = 'error';
+            renderApp();
+            navigateTo('auth');
+            return;
+          }
+        } else {
+          await requestApi(`/api/admin/users/${select.dataset.userRole}`, {
+            method: 'PATCH', body: { role: select.value },
+          });
+        }
         await loadAdminDashboard('Đã cập nhật vai trò.');
       } catch (error) {
         state.adminMessage = error.message;
@@ -1327,7 +1416,15 @@ function bindAll() {
         return;
       }
       try {
-        await requestApi(`/api/admin/users/${userId}`, { method: 'PATCH', body: { name } });
+        if (getAuthSession()?.provider === 'supabase') {
+          if (String(userId) === String(getAuthSession()?.user?.id)) {
+            await updateProfileName(name);
+          } else {
+            await saveSupabaseProfile({ id: userId, name });
+          }
+        } else {
+          await requestApi(`/api/admin/users/${userId}`, { method: 'PATCH', body: { name } });
+        }
         await loadAdminDashboard('Đã cập nhật người dùng.');
       } catch (error) {
         state.adminMessage = error.message;
@@ -1341,7 +1438,11 @@ function bindAll() {
     button.addEventListener('click', async () => {
       if (!window.confirm('Bạn có chắc muốn xóa người dùng này?')) return;
       try {
-        await requestApi(`/api/admin/users/${button.dataset.deleteUser}`, { method: 'DELETE' });
+        if (getAuthSession()?.provider === 'supabase') {
+          await deleteSupabaseUser(button.dataset.deleteUser);
+        } else {
+          await requestApi(`/api/admin/users/${button.dataset.deleteUser}`, { method: 'DELETE' });
+        }
         await loadAdminDashboard('Đã xóa người dùng.');
       } catch (error) {
         state.adminMessage = error.message;
