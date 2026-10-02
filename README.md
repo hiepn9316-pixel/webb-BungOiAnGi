@@ -40,6 +40,7 @@ Khong dua service-role key len frontend hoac Vercel environment variables co tie
    supabase functions deploy admin-users
    ```
 
+   Function nay tu xac thuc access token bang Supabase Auth va kiem tra vai tro admin, vi vay `supabase/config.toml` tat lop xac thuc JWT tai gateway chi cho `admin-users`. Khong tat kiem tra token ben trong function.
    Supabase Edge Function dung `SUPABASE_SERVICE_ROLE_KEY` chi tren server de tao/xoa Auth user. Khong them khoa nay vao Vercel hay frontend.
    Xac nhan function da duoc tao tai Supabase > Edge Functions voi ten `admin-users` va trang thai da deploy truoc khi thu tao/xoa user.
 5. Tren Vercel, khai bao `VITE_SUPABASE_URL` va `VITE_SUPABASE_ANON_KEY`, sau do deploy commit moi nhat.
