@@ -107,21 +107,43 @@ export async function saveSupabaseProfile({ id, name, role }) {
   return data;
 }
 
-export async function createSupabaseUser(user) {
-  const { data, error } = await requireSupabase().functions.invoke('admin-users', {
-    body: { action: 'create', ...user },
-  });
-  if (error) throw new Error(error.message);
+async function invokeAdminUsers(body) {
+  const { data, error } = await requireSupabase().functions.invoke('admin-users', { body });
+  if (error) {
+    const response = error.context instanceof Response ? error.context : null;
+    if (response?.status === 404) {
+      throw new Error('Chưa triển khai Supabase Edge Function "admin-users". Hãy chạy: supabase functions deploy admin-users');
+    }
+    if (response?.status === 401) {
+      throw new Error('Phiên đăng nhập không hợp lệ hoặc đã hết hạn. Hãy đăng xuất rồi đăng nhập lại.');
+    }
+    if (response?.status === 403) {
+      throw new Error('Tài khoản hiện tại không có quyền Admin.');
+    }
+
+    let detail = '';
+    if (response) {
+      const responseText = await response.text();
+      try {
+        const responseBody = responseText ? JSON.parse(responseText) : null;
+        detail = responseBody?.message || responseBody?.error || responseText;
+      } catch {
+        detail = responseText;
+      }
+    }
+    throw new Error(detail || error.message);
+  }
   if (data?.message) throw new Error(data.message);
+  return data;
+}
+
+export async function createSupabaseUser(user) {
+  const data = await invokeAdminUsers({ action: 'create', ...user });
   return data.user;
 }
 
 export async function deleteSupabaseUser(userId) {
-  const { data, error } = await requireSupabase().functions.invoke('admin-users', {
-    body: { action: 'delete', userId },
-  });
-  if (error) throw new Error(error.message);
-  if (data?.message) throw new Error(data.message);
+  await invokeAdminUsers({ action: 'delete', userId });
 }
 
 export async function loadSupabaseProfile(userId) {

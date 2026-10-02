@@ -41,6 +41,7 @@ Khong dua service-role key len frontend hoac Vercel environment variables co tie
    ```
 
    Supabase Edge Function dung `SUPABASE_SERVICE_ROLE_KEY` chi tren server de tao/xoa Auth user. Khong them khoa nay vao Vercel hay frontend.
+   Xac nhan function da duoc tao tai Supabase > Edge Functions voi ten `admin-users` va trang thai da deploy truoc khi thu tao/xoa user.
 5. Tren Vercel, khai bao `VITE_SUPABASE_URL` va `VITE_SUPABASE_ANON_KEY`, sau do deploy commit moi nhat.
 
 Migration tao bang profile, dishes, favorites va history. RLS ngan khach thuong sua mon/quan ly tai khoan; admin dashboard se tu nap danh sach mon mac dinh neu bang `dishes` rong.
