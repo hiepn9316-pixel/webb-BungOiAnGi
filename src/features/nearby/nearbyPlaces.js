@@ -1,6 +1,6 @@
 import { removeVietnameseTones } from '../filters/dishFilters.js';
+import { requestApi } from '../../utils/apiClient.js';
 
-const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 const GOOGLE_MAPS_API_KEY = import.meta.env?.VITE_GOOGLE_MAPS_API_KEY;
 let googleMapsPromise;
 
@@ -35,29 +35,13 @@ export async function findNearbyPlaces(location, radiusKm = 5, dishName) {
         throw new Error('Chưa xác định món ăn cần tìm. Hãy chọn món rồi thử lại.');
     }
 
-    const radiusMeters = Math.round(radiusKm * 1000);
-    const query = `
-    [out:json][timeout:25];
-    (
-      node["amenity"~"^(restaurant|fast_food|cafe|food_court)$"]["name"](around:${radiusMeters},${location.lat},${location.lng});
-      way["amenity"~"^(restaurant|fast_food|cafe|food_court)$"]["name"](around:${radiusMeters},${location.lat},${location.lng});
-      relation["amenity"~"^(restaurant|fast_food|cafe|food_court)$"]["name"](around:${radiusMeters},${location.lat},${location.lng});
-    );
-    out center tags;
-  `;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
-
     try {
-        const response = await fetch(OVERPASS_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-            body: new URLSearchParams({ data: query }),
-            signal: controller.signal
+        const params = new URLSearchParams({
+            lat: String(location.lat),
+            lng: String(location.lng),
+            radiusKm: String(radiusKm)
         });
-        if (!response.ok) throw new Error('Dịch vụ bản đồ đang bận. Vui lòng thử lại sau ít phút.');
-
-        const data = await response.json();
+        const data = await requestApi(`/api/nearby?${params}`);
         const places = (data.elements || [])
             .map(element => {
                 const lat = Number(element.lat ?? element.center?.lat);
@@ -87,9 +71,10 @@ export async function findNearbyPlaces(location, radiusKm = 5, dishName) {
         return places.slice(0, 8).map(place => ({ ...place, fallback: true }));
     } catch (error) {
         if (error.name === 'AbortError') throw new Error('Tìm quán quá lâu. Hãy thử lại hoặc chọn bán kính nhỏ hơn.');
+        if (/failed to fetch|network|load failed/i.test(error.message || '')) {
+            throw new Error('Không thể kết nối dịch vụ tìm quán. Hãy thử lại sau ít phút.');
+        }
         throw error;
-    } finally {
-        clearTimeout(timeoutId);
     }
 }
 

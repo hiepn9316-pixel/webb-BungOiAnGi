@@ -14,6 +14,8 @@ Dang ky va dang nhap duoc xu ly boi cac endpoint `/register` va `/login` cua JSO
 
 JSON Server Auth phu hop cho chay local/offline; no khong duoc Vercel static hosting khoi dong cung frontend. Neu deploy, can host `server.js` tren mot backend rieng va dat `VITE_API_URL` tro den backend do; backend production bat buoc co `JWT_SECRET`, `ADMIN_PASSWORD` va `CORS_ORIGINS`. Khong dung tai khoan/mat khau admin mac dinh tren backend cong khai.
 
+Luong "Tim quan gan toi" gui truy van OpenStreetMap Overpass qua backend da xac thuc de tranh loi CORS khi trinh duyet goi truc tiep dich vu ban do. Sau khi cap nhat code, can deploy ca backend va frontend.
+
 ## Deploy Vercel
 
 1. Import repository vao Vercel. Vercel tu nhan Vite; file `vercel.json` khai bao lenh build va thu muc output. Vercel chi phuc vu giao dien; can host JSON Server API rieng de dang nhap/dang ky hoat dong.
