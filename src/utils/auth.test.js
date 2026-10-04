@@ -12,13 +12,34 @@ function createJsonResponse(body, status = 200) {
   });
 }
 
-test('register and login report missing Supabase configuration clearly', async () => {
-  const registered = await registerUser({ name: 'Nguyễn A', email: 'a@example.com', password: '123456' });
-  const loggedIn = await loginUser({ email: 'a@example.com', password: '123456' });
-  assert.equal(registered.ok, false);
-  assert.equal(loggedIn.ok, false);
-  assert.match(registered.message, /VITE_SUPABASE_URL.*VITE_SUPABASE_ANON_KEY/);
-  assert.match(loggedIn.message, /VITE_SUPABASE_URL.*VITE_SUPABASE_ANON_KEY/);
+test('register and login use the local JSON Server auth endpoints', async t => {
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+  clearAuthSession();
+  globalThis.fetch = async (url, options) => {
+    requests.push({ url, options, body: JSON.parse(options.body) });
+    const isRegister = new URL(url, 'http://localhost').pathname === '/register';
+    return createJsonResponse({
+      accessToken: `token-${isRegister ? 'register' : 'login'}`,
+      user: { id: isRegister ? 2 : 1, name: 'Nguyễn A', email: 'a@example.com', role: 'customer' },
+    }, isRegister ? 201 : 200);
+  };
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+    clearAuthSession();
+  });
+
+  const registered = await registerUser({ name: ' Nguyễn A ', email: 'A@Example.com', password: '123456' });
+  assert.equal(registered.ok, true);
+  assert.equal(registered.user.email, 'a@example.com');
+  assert.equal(Object.hasOwn(getAuthSession(), 'provider'), false);
+
+  const loggedIn = await loginUser({ email: 'A@Example.com', password: '123456' });
+  assert.equal(loggedIn.ok, true);
+  assert.equal(loggedIn.token, 'token-login');
+  assert.deepEqual(requests.map(request => new URL(request.url, 'http://localhost').pathname), ['/register', '/login']);
+  assert.deepEqual(requests[0].body, { name: 'Nguyễn A', email: 'a@example.com', password: '123456' });
+  assert.deepEqual(requests[1].body, { email: 'a@example.com', password: '123456' });
 });
 
 test('auth validation keeps the submitted password unchanged', () => {
@@ -26,13 +47,17 @@ test('auth validation keeps the submitted password unchanged', () => {
   assert.notEqual(validateAuthInput({ email: 'a@example.com', password: '     ' }), '');
 });
 
-test('default API base URL points to the local JSON Server backend', () => {
-  assert.equal(resolveApiBaseUrl(), 'http://127.0.0.1:3000');
+test('default API requests use the same-origin proxy', () => {
+  assert.equal(resolveApiBaseUrl(), '');
 });
 
-test('remote devices use the same-origin proxy instead of a loopback API URL', () => {
+test('configured loopback API URL uses the same-origin proxy on local and remote devices', () => {
   assert.equal(resolveApiBaseUrl('http://127.0.0.1:3000', '192.168.1.25'), '');
-  assert.equal(resolveApiBaseUrl('http://127.0.0.1:3000', 'localhost'), 'http://127.0.0.1:3000');
+  assert.equal(resolveApiBaseUrl('http://127.0.0.1:3000', 'localhost'), '');
+});
+
+test('configured non-loopback API URL is used directly', () => {
+  assert.equal(resolveApiBaseUrl('https://api.example.com', 'localhost'), 'https://api.example.com');
 });
 
 test('password reset remains disabled until its email verification flow is implemented', async () => {
@@ -71,7 +96,7 @@ test('expired auth token automatically clears the session and emits a logout eve
   assert.equal(expiryEvent.type, AUTH_SESSION_EXPIRED_EVENT);
 });
 
-test('a 401 from legacy APIs does not invalidate a Supabase session', async t => {
+test('a 401 from API clears the expired local session', async t => {
   const originalFetch = globalThis.fetch;
   clearAuthSession();
   setAuthSession({ id: 1, name: 'Khách', email: 'a@example.com' }, 'server.jwt.customer');
@@ -82,5 +107,5 @@ test('a 401 from legacy APIs does not invalidate a Supabase session', async t =>
   });
 
   await assert.rejects(requestApi('/api/admin/stats'), /Token hết hạn/);
-  assert.equal(getAuthSession().token, 'server.jwt.customer');
+  assert.equal(getAuthSession(), null);
 });

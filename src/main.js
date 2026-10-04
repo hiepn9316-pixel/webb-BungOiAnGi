@@ -24,19 +24,6 @@ import {
 } from './features/nearby/nearbyPlaces.js';
 import { AUTH_SESSION_EXPIRED_EVENT, apiRegister, apiLogin, apiForgotPassword, getAuthSession, initializeAuth, isAuthenticated, logout, updateProfileName } from './utils/auth.js';
 import { requestApi, uploadImageToCloudinary } from './utils/apiClient.js';
-import {
-  createSupabaseUser,
-  deleteSupabaseDish,
-  deleteSupabaseUser,
-  fetchSupabaseDishes,
-  loadAdminData,
-  loadSupabaseFavorites,
-  loadSupabaseProfileActivity,
-  recordSupabaseHistory,
-  saveSupabaseDish,
-  saveSupabaseFavorites,
-  saveSupabaseProfile,
-} from './utils/supabaseData.js';
 
 // ============================================================
 // STATE QUẢN LÝ ỨNG DỤNG
@@ -284,7 +271,7 @@ function renderProfilePage() {
         </form>
       </section>
       <section class="portal-panel">
-        <h2>${getAuthSession()?.provider === 'supabase' ? 'Món yêu thích trên thiết bị này' : 'Món yêu thích đồng bộ'}</h2>
+        <h2>Món yêu thích đồng bộ</h2>
         ${state.profileFavorites.length
       ? `<div class="dishes-grid">${renderDishCards(dishes.filter(dish => state.profileFavorites.includes(Number(dish.id))))}</div>`
       : '<p class="portal-empty">Bạn chưa lưu món nào.</p>'}
@@ -347,7 +334,7 @@ function renderAdminPage() {
           </form>
         </section>
         <section class="portal-panel"><h2>Danh sách người dùng (${state.adminUsers.length})</h2>
-          <div class="portal-table-wrap"><table class="portal-table"><thead><tr><th>Họ tên</th><th>Email</th><th>Vai trò</th><th>Thao tác</th></tr></thead><tbody>${state.adminUsers.map(user => `<tr><td><input type="text" value="${escapeHTML(user.name || '')}" minlength="2" aria-label="Họ tên của ${escapeHTML(user.email)}" data-user-name="${user.id}" /></td><td>${escapeHTML(user.email)}</td><td><select aria-label="Vai trò của ${escapeHTML(user.email)}" data-user-role="${user.id}"><option value="customer" ${user.role === 'customer' ? 'selected' : ''}>Khách hàng</option><option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option></select></td><td><div class="portal-actions"><button class="portal-button" type="button" data-save-user-name="${user.id}">Lưu</button><button class="portal-button portal-button--danger" type="button" data-delete-user="${user.id}" ${String(user.id) === String(getAuthSession()?.user?.id) ? 'disabled' : ''}>Xóa</button></div></td></tr>`).join('')}</tbody></table></div>
+          <div class="portal-table-wrap"><table class="portal-table"><thead><tr><th>Họ tên</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>${state.adminUsers.map(user => `<tr><td><input type="text" value="${escapeHTML(user.name || '')}" minlength="2" aria-label="Họ tên của ${escapeHTML(user.email)}" data-user-name="${user.id}" /></td><td>${escapeHTML(user.email)}</td><td><select aria-label="Vai trò của ${escapeHTML(user.email)}" data-user-role="${user.id}"><option value="customer" ${user.role === 'customer' ? 'selected' : ''}>Khách hàng</option><option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option></select></td><td>Đang hoạt động</td><td><div class="portal-actions"><button class="portal-button" type="button" data-save-user-name="${user.id}">Lưu</button><button class="portal-button portal-button--danger" type="button" data-delete-user="${user.id}" ${String(user.id) === String(getAuthSession()?.user?.id) ? 'disabled' : ''}>Xóa</button></div></td></tr>`).join('')}</tbody></table></div>
         </section>`}
       <div class="portal-metrics">
         <div class="portal-metric"><span>Người dùng</span><strong>${stats?.userCount ?? '—'}</strong></div>
@@ -666,9 +653,7 @@ function renderModal() {
 
 function openModal(dish, onRoll) {
   if (!dish) return;
-  if (getAuthSession()?.provider === 'supabase') {
-    void recordSupabaseHistory(Number(dish.id)).catch(error => console.error('Không thể lưu lịch sử xem món:', error.message));
-  } else if (isAuthenticated() && getAuthSession()?.user?.role === 'customer') {
+  if (isAuthenticated() && getAuthSession()?.user?.role === 'customer') {
     requestApi('/api/customer/history', { method: 'POST', body: { dishId: Number(dish.id) } }).catch(() => { });
   }
   const overlay = document.getElementById('dish-modal');
@@ -727,8 +712,8 @@ function renderNearbyPanel(dish, panel = document.getElementById('modal-nearby-p
     <section class="nearby-panel" aria-label="Tìm quán ăn gần đây">
       <div class="nearby-title-row">
         <div>
-          <h3>Quán gần bạn</h3>
-          <p class="nearby-caption">Tìm địa điểm thật quanh vị trí hiện tại</p>
+          <h3>Quán bán ${escapeHTML(dish.name)} gần bạn</h3>
+          <p class="nearby-caption">Chỉ hiện quán có thông tin về món này trên bản đồ</p>
         </div>
         <label class="nearby-radius-label" for="${ids.radius}">Bán kính
           <select id="${ids.radius}" aria-label="Bán kính tìm quán">
@@ -740,7 +725,7 @@ function renderNearbyPanel(dish, panel = document.getElementById('modal-nearby-p
         </label>
       </div>
       <button type="button" class="nearby-locate-btn" id="${ids.locate}">
-        <span aria-hidden="true">◎</span> Tìm quán gần tôi
+        <span aria-hidden="true">◎</span> Tìm quán ${escapeHTML(dish.name)} gần tôi
       </button>
       <div class="nearby-location-row">
         <p class="nearby-status" id="${ids.status}" role="status" aria-live="polite">
@@ -782,23 +767,26 @@ function renderNearbyPanel(dish, panel = document.getElementById('modal-nearby-p
 
     try {
       currentLocation = await getCurrentPosition();
-      status.textContent = `Đã xác định vị trí. Đang tìm quán trong bán kính ${radiusKm} km…`;
+      status.textContent = `Đã xác định vị trí. Đang tìm quán bán ${dish.name} trong bán kính ${radiusKm} km…`;
       if (mapElement) await renderNearbyMap(mapElement, currentLocation);
 
-      const places = await findNearbyPlaces(currentLocation, radiusKm);
+      const places = await findNearbyPlaces(currentLocation, radiusKm, dish.name);
       if (!panel.isConnected) return;
       if (places.length === 0) {
-        status.textContent = `Chưa tìm thấy quán có dữ liệu trong bán kính ${radiusKm} km. Thử tăng bán kính.`;
+        status.textContent = `Chưa có quán nào gần bạn trong bán kính ${radiusKm} km. Hãy thử tăng bán kính hoặc xem trên Google Maps.`;
         return;
       }
 
-      status.textContent = `Tìm thấy ${places.length} quán. Gần nhất cách bạn ${formatDistance(places[0].distanceKm)}.`;
+      const fallbackMode = places.some(place => place.fallback);
+      status.textContent = fallbackMode
+        ? `Không tìm thấy quán bán ${dish.name} đúng món, nhưng đây là quán gần nhất quanh bạn.`
+        : `Tìm thấy ${places.length} quán. Gần nhất cách bạn ${formatDistance(places[0].distanceKm)}.`;
       resultsElement.innerHTML = places.slice(0, 8).map((place, index) => `
         <article class="nearby-place ${index === 0 ? 'is-nearest' : ''}">
           <button type="button" class="nearby-place-select" data-place-index="${index}">
             <span class="nearby-place-name">${escapeHTML(place.name)}</span>
             <span class="nearby-place-distance">${formatDistance(place.distanceKm)}</span>
-            <span class="nearby-place-address">${escapeHTML(place.address)}</span>
+            <span class="nearby-place-address">${escapeHTML(place.address)}${place.fallback ? ' · Gần bạn' : ''}</span>
           </button>
           <a class="nearby-directions" href="${googleMapsDirectionsUrl(currentLocation, place)}" target="_blank" rel="noopener noreferrer" aria-label="Chỉ đường đến ${escapeHTML(place.name)}">Chỉ đường ↗</a>
         </article>`).join('');
@@ -849,15 +837,6 @@ function toggleFav(id) {
   if (idx >= 0) state.favorites.splice(idx, 1);
   else state.favorites.push(id);
   localStorage.setItem('bung_favs', JSON.stringify(state.favorites));
-  if (getAuthSession()?.provider === 'supabase') {
-    state.profileFavorites = [...state.favorites];
-    void saveSupabaseFavorites(state.favorites).catch(error => {
-      state.profileMessage = error.message;
-      state.profileMessageType = 'error';
-    });
-    return true;
-  }
-
   requestApi('/api/customer/favorites', {
     method: 'PUT',
     body: { dishIds: state.favorites },
@@ -978,19 +957,6 @@ function navigateTo(page, { updateUrl = true } = {}) {
 }
 
 async function loadRemoteDishes() {
-  if (getAuthSession()?.provider === 'supabase' || import.meta.env?.VITE_SUPABASE_URL) {
-    try {
-      const remoteDishes = await fetchSupabaseDishes();
-      if (remoteDishes.length) {
-        replaceDishes(remoteDishes);
-        renderApp();
-      }
-    } catch (error) {
-      console.error('Không thể đồng bộ món từ Supabase:', error.message);
-    }
-    return;
-  }
-
   try {
     const remoteDishes = await requestApi('/api/dishes', { auth: false });
     if (Array.isArray(remoteDishes) && remoteDishes.length) {
@@ -998,29 +964,11 @@ async function loadRemoteDishes() {
       renderApp();
     }
   } catch (error) {
-    console.warn('Không thể đồng bộ danh sách món từ API:', error.message);
+    console.warn('Không thể đồng bộ danh sách món từ JSON Server:', error.message);
   }
 }
 
 async function loadProfileData() {
-  const session = getAuthSession();
-  if (session?.provider === 'supabase') {
-    try {
-      const activity = await loadSupabaseProfileActivity(session.user.id);
-      state.profile = session.user;
-      state.profileFavorites = activity.favorites;
-      state.profileHistory = activity.history;
-      state.favorites = activity.favorites;
-      localStorage.setItem('bung_favs', JSON.stringify(state.favorites));
-      if (state.activePage === 'profile') renderApp();
-    } catch (error) {
-      state.profileMessage = error.message;
-      state.profileMessageType = 'error';
-      if (state.activePage === 'profile') renderApp();
-    }
-    return;
-  }
-
   try {
     const [profile, favorites, history] = await Promise.all([
       requestApi('/api/me'),
@@ -1041,24 +989,6 @@ async function loadProfileData() {
 }
 
 async function loadCustomerFavorites() {
-  if (getAuthSession()?.provider === 'supabase') {
-    try {
-      state.favorites = await loadSupabaseFavorites();
-      state.profileFavorites = [...state.favorites];
-      localStorage.setItem('bung_favs', JSON.stringify(state.favorites));
-      updateFavBadge();
-      if (state.activePage === 'favs') {
-        const favPage = document.getElementById('page-favs');
-        if (favPage) favPage.innerHTML = renderFavs();
-        bindDishCards();
-      }
-    } catch (error) {
-      state.profileMessage = error.message;
-      state.profileMessageType = 'error';
-    }
-    return;
-  }
-
   try {
     const result = await requestApi('/api/customer/favorites');
     state.favorites = result.dishIds.map(Number);
@@ -1076,23 +1006,15 @@ async function loadCustomerFavorites() {
 
 async function loadAdminDashboard(successMessage = '') {
   try {
-    if (getAuthSession()?.provider === 'supabase') {
-      const adminData = await loadAdminData();
-      state.adminStats = adminData.stats;
-      state.adminDishes = adminData.dishes;
-      state.adminUsers = adminData.users;
-      replaceDishes(adminData.dishes);
-    } else {
-      const [stats, adminDishes, users] = await Promise.all([
-        requestApi('/api/admin/stats'),
-        requestApi('/api/admin/dishes'),
-        requestApi('/api/admin/users'),
-      ]);
-      state.adminStats = stats;
-      state.adminDishes = adminDishes;
-      state.adminUsers = users;
-      replaceDishes(adminDishes);
-    }
+    const [stats, adminDishes, users] = await Promise.all([
+      requestApi('/api/admin/stats'),
+      requestApi('/api/admin/dishes'),
+      requestApi('/api/admin/users'),
+    ]);
+    state.adminStats = stats;
+    state.adminDishes = adminDishes;
+    state.adminUsers = users;
+    replaceDishes(adminDishes);
     state.adminMessage = successMessage;
     state.adminMessageType = successMessage ? 'success' : '';
   } catch (error) {
@@ -1202,9 +1124,7 @@ function bindAll() {
     event.preventDefault();
     const name = String(new FormData(event.currentTarget).get('name') || '').trim();
     try {
-      const profile = getAuthSession()?.provider === 'supabase'
-        ? await updateProfileName(name)
-        : await requestApi('/api/me', { method: 'PATCH', body: { name } });
+      const profile = await updateProfileName(name);
       state.profile = profile;
       state.profileMessage = 'Hồ sơ đã được cập nhật.';
       state.profileMessageType = 'success';
@@ -1307,14 +1227,10 @@ function bindAll() {
     };
     const editingId = state.adminEditDishId;
     try {
-      if (getAuthSession()?.provider === 'supabase') {
-        await saveSupabaseDish(dish, editingId);
-      } else {
-        await requestApi(editingId ? `/api/admin/dishes/${editingId}` : '/api/admin/dishes', {
-          method: editingId ? 'PATCH' : 'POST',
-          body: dish,
-        });
-      }
+      await requestApi(editingId ? `/api/admin/dishes/${editingId}` : '/api/admin/dishes', {
+        method: editingId ? 'PATCH' : 'POST',
+        body: dish,
+      });
       state.adminEditDishId = null;
       state.adminDishDraft = null;
       await loadAdminDashboard(editingId ? 'Đã cập nhật món ăn.' : 'Đã thêm món ăn.');
@@ -1346,11 +1262,7 @@ function bindAll() {
     button.addEventListener('click', async () => {
       if (!window.confirm('Bạn có chắc muốn xóa món này?')) return;
       try {
-        if (getAuthSession()?.provider === 'supabase') {
-          await deleteSupabaseDish(Number(button.dataset.deleteDish));
-        } else {
-          await requestApi(`/api/admin/dishes/${button.dataset.deleteDish}`, { method: 'DELETE' });
-        }
+        await requestApi(`/api/admin/dishes/${button.dataset.deleteDish}`, { method: 'DELETE' });
         await loadAdminDashboard('Đã xóa món ăn.');
       } catch (error) {
         state.adminMessage = error.message;
@@ -1364,11 +1276,7 @@ function bindAll() {
     event.preventDefault();
     const values = Object.fromEntries(new FormData(event.currentTarget));
     try {
-      if (getAuthSession()?.provider === 'supabase') {
-        await createSupabaseUser(values);
-      } else {
-        await requestApi('/api/admin/users', { method: 'POST', body: values });
-      }
+      await requestApi('/api/admin/users', { method: 'POST', body: values });
       await loadAdminDashboard('Đã tạo người dùng.');
     } catch (error) {
       state.adminMessage = error.message;
@@ -1380,21 +1288,9 @@ function bindAll() {
   document.querySelectorAll('[data-user-role]').forEach(select => {
     select.addEventListener('change', async () => {
       try {
-        if (getAuthSession()?.provider === 'supabase') {
-          await saveSupabaseProfile({ id: select.dataset.userRole, role: select.value });
-          if (String(select.dataset.userRole) === String(getAuthSession()?.user?.id) && select.value !== 'admin') {
-            await logout();
-            state.adminMessage = 'Vai trò của bạn đã bị thay đổi; vui lòng đăng nhập lại.';
-            state.adminMessageType = 'error';
-            renderApp();
-            navigateTo('auth');
-            return;
-          }
-        } else {
-          await requestApi(`/api/admin/users/${select.dataset.userRole}`, {
-            method: 'PATCH', body: { role: select.value },
-          });
-        }
+        await requestApi(`/api/admin/users/${select.dataset.userRole}`, {
+          method: 'PATCH', body: { role: select.value },
+        });
         await loadAdminDashboard('Đã cập nhật vai trò.');
       } catch (error) {
         state.adminMessage = error.message;
@@ -1416,15 +1312,7 @@ function bindAll() {
         return;
       }
       try {
-        if (getAuthSession()?.provider === 'supabase') {
-          if (String(userId) === String(getAuthSession()?.user?.id)) {
-            await updateProfileName(name);
-          } else {
-            await saveSupabaseProfile({ id: userId, name });
-          }
-        } else {
-          await requestApi(`/api/admin/users/${userId}`, { method: 'PATCH', body: { name } });
-        }
+        await requestApi(`/api/admin/users/${userId}`, { method: 'PATCH', body: { name } });
         await loadAdminDashboard('Đã cập nhật người dùng.');
       } catch (error) {
         state.adminMessage = error.message;
@@ -1438,11 +1326,7 @@ function bindAll() {
     button.addEventListener('click', async () => {
       if (!window.confirm('Bạn có chắc muốn xóa người dùng này?')) return;
       try {
-        if (getAuthSession()?.provider === 'supabase') {
-          await deleteSupabaseUser(button.dataset.deleteUser);
-        } else {
-          await requestApi(`/api/admin/users/${button.dataset.deleteUser}`, { method: 'DELETE' });
-        }
+        await requestApi(`/api/admin/users/${button.dataset.deleteUser}`, { method: 'DELETE' });
         await loadAdminDashboard('Đã xóa người dùng.');
       } catch (error) {
         state.adminMessage = error.message;
