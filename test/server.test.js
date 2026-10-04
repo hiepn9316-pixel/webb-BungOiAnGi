@@ -147,6 +147,14 @@ test('roles protect admin APIs and customer data is scoped to its owner', { time
   assert.equal(registration.data.user.role, 'customer');
   const customerToken = registration.data.accessToken;
 
+  const anonymousNearby = await jsonRequest(`${baseUrl}/660/api/nearby?lat=10&lng=106&radiusKm=5`);
+  assert.equal(anonymousNearby.response.status, 401);
+
+  const invalidNearbyQuery = await jsonRequest(`${baseUrl}/660/api/nearby?lat=91&lng=106&radiusKm=5`, {
+    token: customerToken,
+  });
+  assert.equal(invalidNearbyQuery.response.status, 400);
+
   const customerLogin = await jsonRequest(`${baseUrl}/login`, {
     method: 'POST',
     body: { email: 'customer@test.local', password: ' Customer123! ' },

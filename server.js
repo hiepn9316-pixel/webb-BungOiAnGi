@@ -11,6 +11,8 @@ const jsonServerAuth = require('json-server-auth');
 const bcrypt = require('bcryptjs');
 const authConstants = require('json-server-auth/dist/constants');
 
+const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+
 if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || !process.env.ADMIN_PASSWORD || !process.env.CORS_ORIGINS)) {
   throw new Error('Production requires JWT_SECRET, ADMIN_PASSWORD, and CORS_ORIGINS environment variables.');
 }
@@ -314,6 +316,54 @@ app.use((req, res, next) => {
 
   if (req.path === '/api/dishes' && req.method === 'GET') {
     res.json(db.get('dishes').value());
+    return;
+  }
+
+  if (req.path === '/api/nearby' && req.method === 'GET') {
+    const user = userFromRequest(req);
+    if (!user) return unauthorized(res);
+
+    const lat = Number(req.query.lat);
+    const lng = Number(req.query.lng);
+    const radiusKm = Number(req.query.radiusKm);
+    if (
+      !Number.isFinite(lat) || lat < -90 || lat > 90
+      || !Number.isFinite(lng) || lng < -180 || lng > 180
+      || !Number.isFinite(radiusKm) || radiusKm <= 0 || radiusKm > 10
+    ) {
+      return res.status(400).json({ message: 'Tọa độ hoặc bán kính tìm kiếm không hợp lệ.' });
+    }
+
+    const radiusMeters = Math.round(radiusKm * 1000);
+    const query = `
+      [out:json][timeout:20];
+      (
+        node["amenity"~"^(restaurant|fast_food|cafe|food_court)$"]["name"](around:${radiusMeters},${lat},${lng});
+        way["amenity"~"^(restaurant|fast_food|cafe|food_court)$"]["name"](around:${radiusMeters},${lat},${lng});
+        relation["amenity"~"^(restaurant|fast_food|cafe|food_court)$"]["name"](around:${radiusMeters},${lat},${lng});
+      );
+      out center tags;
+    `;
+
+    fetch(OVERPASS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+      body: new URLSearchParams({ data: query }),
+      signal: AbortSignal.timeout(25000),
+    }).then(async response => {
+      if (!response.ok) {
+        console.warn(`Overpass nearby query failed with status ${response.status}.`);
+        res.status(502).json({ message: 'Dịch vụ bản đồ đang bận. Vui lòng thử lại sau ít phút.' });
+        return;
+      }
+      const data = await response.json();
+      res.json({ elements: Array.isArray(data.elements) ? data.elements : [] });
+    }).catch(error => {
+      console.warn('Overpass nearby query could not be completed:', error.message);
+      if (!res.headersSent) {
+        res.status(502).json({ message: 'Không thể kết nối dịch vụ bản đồ. Vui lòng thử lại sau ít phút.' });
+      }
+    });
     return;
   }
 
