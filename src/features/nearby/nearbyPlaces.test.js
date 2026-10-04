@@ -1,6 +1,30 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getCurrentPosition, serviceSearchUrl } from './nearbyPlaces.js';
+import { doesPlaceMatchDish, getCurrentPosition, serviceSearchUrl } from './nearbyPlaces.js';
+
+test('nearby results must identify the selected dish, ignoring Vietnamese accents', () => {
+  assert.equal(doesPlaceMatchDish({
+    name: 'Bún bò Huế O Xuân',
+    tags: { cuisine: 'vietnamese' }
+  }, 'Bún Bò Huế Đặc Biệt'), true);
+
+  assert.equal(doesPlaceMatchDish({
+    name: 'Quán cà phê bên đường',
+    tags: { amenity: 'cafe', cuisine: 'coffee_shop' }
+  }, 'Bún Bò Huế Đặc Biệt'), false);
+
+  assert.equal(doesPlaceMatchDish({
+    name: 'Bún bò Nam Bộ',
+    tags: {}
+  }, 'Bún Bò Huế Đặc Biệt'), false);
+});
+
+test('dish tags can identify a restaurant even when its name is generic', () => {
+  assert.equal(doesPlaceMatchDish({
+    name: 'Quán ăn gia đình',
+    tags: { dish: 'Cơm tấm sườn bì chả' }
+  }, 'Cơm Tấm Sườn Bì Chả'), true);
+});
 
 test('denied GPS permission is reported without retrying the location request', async t => {
   const originalNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');

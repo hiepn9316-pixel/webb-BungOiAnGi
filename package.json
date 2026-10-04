@@ -4,9 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently -k -n api,web \"npm:api\" \"npm:dev:web\"",
+    "dev:web": "vite",
     "api": "node server.js",
-    "dev:all": "concurrently -k -n api,web \"npm:api\" \"npm:dev\"",
+    "dev:all": "npm:dev",
     "build": "vite build",
     "preview": "vite preview",
     "test": "node --test"
@@ -20,8 +21,5 @@
   },
   "overrides": {
     "jsonwebtoken": "^9.0.2"
-  },
-  "dependencies": {
-    "@supabase/supabase-js": "^2.117.2"
   }
 }

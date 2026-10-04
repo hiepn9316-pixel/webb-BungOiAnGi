@@ -9,10 +9,10 @@ export function resolveApiBaseUrl(configuredValue = import.meta.env?.VITE_API_UR
     } catch {
       return configured;
     }
-    return browserHostname && !isLoopback(browserHostname) && isLoopback(apiHostname) ? '' : configured;
+    return isLoopback(apiHostname) ? '' : configured;
   }
 
-  return browserHostname && !isLoopback(browserHostname) ? '' : 'http://127.0.0.1:3000';
+  return '';
 }
 
 const API_BASE_URL = resolveApiBaseUrl();
@@ -38,7 +38,7 @@ export async function requestApi(path, { method = 'GET', body, auth = true, sign
   if (body !== undefined) headers.set('Content-Type', 'application/json');
 
   const session = readSession();
-  const token = session?.provider === 'supabase' ? null : session?.token;
+  const token = session?.token;
   if (auth && token) headers.set('Authorization', `Bearer ${token}`);
 
   const response = await fetch(`${API_BASE_URL}${guardedPath}`, {
@@ -59,7 +59,7 @@ export async function requestApi(path, { method = 'GET', body, auth = true, sign
   }
 
   if (!response.ok) {
-    if (response.status === 401 && auth && session?.provider !== 'supabase') {
+    if (response.status === 401 && auth && session?.token) {
       if (typeof window !== 'undefined' && window.localStorage) {
         window.localStorage.removeItem(AUTH_STORAGE_KEY);
       } else if (globalThis.__bungoiangi_store__) {

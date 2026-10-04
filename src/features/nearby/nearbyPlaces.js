@@ -1,3 +1,5 @@
+import { removeVietnameseTones } from '../filters/dishFilters.js';
+
 const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 const GOOGLE_MAPS_API_KEY = import.meta.env?.VITE_GOOGLE_MAPS_API_KEY;
 let googleMapsPromise;
@@ -27,7 +29,12 @@ export function getCurrentPosition() {
         });
 }
 
-export async function findNearbyPlaces(location, radiusKm = 5) {
+export async function findNearbyPlaces(location, radiusKm = 5, dishName) {
+    const searchTerms = getDishSearchTerms(dishName);
+    if (searchTerms.length === 0) {
+        throw new Error('Chưa xác định món ăn cần tìm. Hãy chọn món rồi thử lại.');
+    }
+
     const radiusMeters = Math.round(radiusKm * 1000);
     const query = `
     [out:json][timeout:25];
@@ -51,7 +58,7 @@ export async function findNearbyPlaces(location, radiusKm = 5) {
         if (!response.ok) throw new Error('Dịch vụ bản đồ đang bận. Vui lòng thử lại sau ít phút.');
 
         const data = await response.json();
-        return (data.elements || [])
+        const places = (data.elements || [])
             .map(element => {
                 const lat = Number(element.lat ?? element.center?.lat);
                 const lng = Number(element.lon ?? element.center?.lon);
@@ -65,17 +72,56 @@ export async function findNearbyPlaces(location, radiusKm = 5) {
                     lng,
                     address: formatAddress(tags),
                     category: tags.amenity,
-                    distanceKm: distanceBetweenKm(location, { lat, lng })
+                    distanceKm: distanceBetweenKm(location, { lat, lng }),
+                    searchTags: tags
                 };
             })
             .filter(place => place?.name && place.distanceKm <= radiusKm)
             .sort((left, right) => left.distanceKm - right.distanceKm);
+
+        const exactMatches = places.filter(place => doesPlaceMatchDish(place, searchTerms));
+        if (exactMatches.length > 0) {
+            return exactMatches.slice(0, 8);
+        }
+
+        return places.slice(0, 8).map(place => ({ ...place, fallback: true }));
     } catch (error) {
         if (error.name === 'AbortError') throw new Error('Tìm quán quá lâu. Hãy thử lại hoặc chọn bán kính nhỏ hơn.');
         throw error;
     } finally {
         clearTimeout(timeoutId);
     }
+}
+
+export function doesPlaceMatchDish(place, dishName) {
+    const searchTerms = Array.isArray(dishName) ? dishName : getDishSearchTerms(dishName);
+    if (!searchTerms.length) return false;
+
+    const tags = place.searchTags || place.tags || {};
+    const searchableText = [
+        place.name,
+        tags.name,
+        tags.dish,
+        tags.cuisine,
+        tags.description,
+        tags['food']
+    ].filter(Boolean).map(removeVietnameseTones);
+
+    return searchTerms.some(term => searchableText.some(text => text.includes(term)));
+}
+
+function getDishSearchTerms(dishName) {
+    const normalizedName = removeVietnameseTones(
+        typeof dishName === 'string' ? dishName : dishName?.name || ''
+    );
+    if (!normalizedName) return [];
+
+    const terms = [normalizedName];
+    const words = normalizedName.split(/\s+/);
+    if (words.length >= 3) {
+        terms.push(words.slice(0, 3).join(' '));
+    }
+    return [...new Set(terms)];
 }
 
 function formatAddress(tags) {
