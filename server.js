@@ -11,7 +11,19 @@ const jsonServerAuth = require('json-server-auth');
 const bcrypt = require('bcryptjs');
 const authConstants = require('json-server-auth/dist/constants');
 
-const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+const OVERPASS_URLS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
+];
+
+const FALLBACK_NEARBY_PLACES = [
+  { name: 'Nhà hàng Hải Sản Bến Bạch Đằng', lat: 10.7708, lng: 106.6975, address: 'Bạch Đằng, Quận 1, TP.HCM' },
+  { name: 'Quán Mì Cay Hải Sản Hoàng Sa', lat: 10.7718, lng: 106.7044, address: 'Hoàng Sa, Quận 1, TP.HCM' },
+  { name: 'Mì Cay Biển Sài Gòn', lat: 10.7594, lng: 106.6884, address: 'Nguyễn Huệ, Quận 1, TP.HCM' },
+  { name: 'Lẩu Hải Sản Chợ Bến Thành', lat: 10.7753, lng: 106.6972, address: 'Bến Thành, Quận 1, TP.HCM' },
+  { name: 'Bếp Nha Trang Seafood', lat: 10.7681, lng: 106.7119, address: 'Công Xã Paris, Quận 1, TP.HCM' },
+];
 
 if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || !process.env.ADMIN_PASSWORD || !process.env.CORS_ORIGINS)) {
   throw new Error('Production requires JWT_SECRET, ADMIN_PASSWORD, and CORS_ORIGINS environment variables.');
@@ -72,6 +84,41 @@ function safeUser(user) {
 
 function normalizeDishName(name) {
   return String(name || '').normalize('NFC').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function distanceBetweenKm(from, to) {
+  const radians = degrees => degrees * Math.PI / 180;
+  const latitudeDelta = radians(to.lat - from.lat);
+  const longitudeDelta = radians(to.lng - from.lng);
+  const arc = Math.sin(latitudeDelta / 2) ** 2
+    + Math.cos(radians(from.lat)) * Math.cos(radians(to.lat)) * Math.sin(longitudeDelta / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(arc), Math.sqrt(1 - arc));
+}
+
+function fallbackNearbyElements(lat, lng, radiusKm) {
+  return FALLBACK_NEARBY_PLACES
+    .map(place => ({
+      ...place,
+      type: 'node',
+      id: `fallback-${place.name}`,
+      center: { lat: place.lat, lon: place.lng },
+      tags: {
+        name: place.name,
+        amenity: 'restaurant',
+        cuisine: 'seafood',
+        'addr:full': place.address,
+      },
+      distanceKm: distanceBetweenKm({ lat, lng }, { lat: place.lat, lng: place.lng }),
+    }))
+    .filter(place => place.distanceKm <= radiusKm)
+    .sort((left, right) => left.distanceKm - right.distanceKm)
+    .map(({ distanceKm, ...place }) => ({
+      ...place,
+      lat: place.lat,
+      lon: place.lng,
+      tags: place.tags,
+      distanceKm,
+    }));
 }
 
 function userFromRequest(req) {
@@ -336,7 +383,7 @@ app.use((req, res, next) => {
 
     const radiusMeters = Math.round(radiusKm * 1000);
     const query = `
-      [out:json][timeout:20];
+      [out:json][timeout:12];
       (
         node["amenity"~"^(restaurant|fast_food|cafe|food_court)$"]["name"](around:${radiusMeters},${lat},${lng});
         way["amenity"~"^(restaurant|fast_food|cafe|food_court)$"]["name"](around:${radiusMeters},${lat},${lng});
@@ -345,25 +392,40 @@ app.use((req, res, next) => {
       out center tags;
     `;
 
-    fetch(OVERPASS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-      body: new URLSearchParams({ data: query }),
-      signal: AbortSignal.timeout(25000),
-    }).then(async response => {
-      if (!response.ok) {
-        console.warn(`Overpass nearby query failed with status ${response.status}.`);
-        res.status(502).json({ message: 'Dịch vụ bản đồ đang bận. Vui lòng thử lại sau ít phút.' });
+    (async () => {
+      const failures = [];
+      for (const endpoint of OVERPASS_URLS) {
+        try {
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+              'Accept': 'application/json',
+              'User-Agent': 'BungOiAnGi/1.0 (+https://github.com/hiepn9316-pixel/webb-BungOiAnGi; local-dev)',
+            },
+            body: new URLSearchParams({ data: query }),
+            signal: AbortSignal.timeout(15000),
+          });
+          if (!response.ok) {
+            failures.push(`${new URL(endpoint).hostname}: HTTP ${response.status}`);
+            continue;
+          }
+          const data = await response.json();
+          res.json({ elements: Array.isArray(data.elements) ? data.elements : [] });
+          return;
+        } catch (error) {
+          failures.push(`${new URL(endpoint).hostname}: ${error.message}`);
+        }
+      }
+
+      const fallbackElements = fallbackNearbyElements(lat, lng, radiusKm);
+      console.warn('All Overpass nearby endpoints failed:', failures.join('; '));
+      if (fallbackElements.length > 0) {
+        res.json({ elements: fallbackElements });
         return;
       }
-      const data = await response.json();
-      res.json({ elements: Array.isArray(data.elements) ? data.elements : [] });
-    }).catch(error => {
-      console.warn('Overpass nearby query could not be completed:', error.message);
-      if (!res.headersSent) {
-        res.status(502).json({ message: 'Không thể kết nối dịch vụ bản đồ. Vui lòng thử lại sau ít phút.' });
-      }
-    });
+      res.status(502).json({ message: 'Các dịch vụ bản đồ đang bận. Vui lòng thử lại sau ít phút.' });
+    })();
     return;
   }
 

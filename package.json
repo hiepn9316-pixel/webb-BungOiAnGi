@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k -n api,web \"npm:api\" \"npm:dev:web\"",
+    "dev": "node scripts/run-dev.mjs",
     "dev:web": "vite",
     "api": "node server.js",
     "dev:all": "npm:dev",
